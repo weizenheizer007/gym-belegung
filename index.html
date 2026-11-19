@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#f3f0ea">
+<title>Gym-Belegung Uni Mannheim</title>
+<style>
+.viz-root {
+  color-scheme: light;
+  --bg: #f3f0ea;
+  --card: #f7f5f0;
+  --inset: #eeeae2;
+  --hi: rgba(255,255,255,.95);
+  --lo: rgba(163,152,130,.28);
+  --text-primary: #23262b;
+  --text-secondary: #5b5f66;
+  --text-muted: #8c8f94;
+  --grid: #e3ded4;
+  --accent: #0b5cd8;
+  --accent-soft: #dfe8f8;
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --closed: #e6e1d7;
+  --amp-1: #1f9d55; --amp-2: #7bc35b; --amp-3: #f2c230; --amp-4: #f08a2c; --amp-5: #d9433a;
+}
+@media (prefers-color-scheme: dark) {
+  .viz-root {
+    color-scheme: dark;
+    --bg: #1c1d1f;
+    --card: #222326;
+    --inset: #1a1b1d;
+    --hi: rgba(255,255,255,.04);
+    --lo: rgba(0,0,0,.45);
+    --text-primary: #f0efec;
+    --text-secondary: #c3c2b7;
+    --text-muted: #8e8d86;
+    --grid: #34353a;
+    --accent: #5b95ee;
+    --accent-soft: #23324a;
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --closed: #2c2d31;
+    --amp-1: #1f9d55; --amp-2: #6db04f; --amp-3: #e0b12a; --amp-4: #e27f27; --amp-5: #e0514a;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; font: 15px/1.45 "Inter", system-ui, -apple-system, "Segoe UI", sans-serif; }
+.viz-root { background: var(--bg); color: var(--text-primary); min-height: 100vh; padding: 36px 18px 56px; }
+main { max-width: 1040px; margin: 0 auto; display: grid; gap: 22px; grid-template-columns: minmax(0, 1fr); }
+main > *, .status > * { min-width: 0; }
+@media (max-width: 600px) { .card { padding: 18px 16px; border-radius: 18px; } .big { font-size: 54px; } .viz-root { padding: 24px 12px 40px; } }
+
+header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 8px; }
+h1 { font-size: clamp(28px, 5vw, 44px); font-weight: 500; letter-spacing: .12em; margin: 0; line-height: 1.05; }
+h1 .slash { color: var(--accent); font-weight: 400; }
+.kicker { font-size: 12px; letter-spacing: .32em; text-transform: uppercase; color: var(--text-secondary); margin-top: 10px; }
+.tagline { text-align: right; font-size: 10px; letter-spacing: .3em; text-transform: uppercase; color: var(--text-muted); line-height: 1.9; }
+
+.card { background: var(--card); border-radius: 22px; padding: 22px 24px;
+        box-shadow: 9px 9px 22px var(--lo), -9px -9px 22px var(--hi); }
+.inner { background: var(--card); border-radius: 16px; padding: 16px 18px;
+         box-shadow: 5px 5px 14px var(--lo), -5px -5px 14px var(--hi); }
+.well { background: var(--inset); border-radius: 999px; box-shadow: inset 3px 3px 7px var(--lo), inset -3px -3px 7px var(--hi); }
+h2 { font-size: 13px; font-weight: 500; letter-spacing: .2em; text-transform: uppercase; margin: 0 0 4px; }
+.sub { color: var(--text-secondary); margin: 0; font-size: 14px; }
+.banner { display: flex; gap: 14px; align-items: center; }
+.banner .ico { flex: none; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+
+/* Status */
+.status { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+@media (max-width: 600px) {
+  .status { gap: 12px; }
+  .status .card { padding: 16px 14px; }
+  .status h2 { font-size: 11px; letter-spacing: .14em; }
+  .status .big { font-size: 42px; margin-top: 12px; }
+  .status .big small { display: block; font-size: 13px; margin: 4px 0 0; }
+  .status .pill { padding: 6px 12px 6px 8px; font-size: 13px; }
+  .status .dot { width: 16px; height: 16px; }
+  .status .reco { flex-direction: column; gap: 10px; padding: 12px; }
+  .status .reco .ico { width: 36px; height: 36px; }
+  .status .reco b { font-size: 15px; }
+  .status .reco .sub { font-size: 13px; }
+  .status .facts { grid-template-columns: 1fr; gap: 8px; margin-top: 12px; }
+  .status .fact .v { font-size: 17px; }
+  .status .meter-row { flex-direction: column; gap: 2px; font-size: 12px; }
+}
+.pill { display: inline-flex; align-items: center; gap: 10px; padding: 8px 16px 8px 10px; border-radius: 999px; font-weight: 600; font-size: 15px; }
+.dot { width: 22px; height: 22px; border-radius: 50%; box-shadow: inset -2px -3px 5px rgba(0,0,0,.18), inset 2px 2px 4px rgba(255,255,255,.35); }
+.big { font-size: 64px; font-weight: 600; letter-spacing: -.03em; line-height: 1; margin: 18px 0 2px; font-variant-numeric: tabular-nums; }
+.big small { font-size: 17px; font-weight: 500; color: var(--text-secondary); letter-spacing: 0; margin-left: 6px; }
+.meta { color: var(--text-muted); font-size: 13px; }
+.meter { height: 14px; margin: 18px 0 8px; position: relative; overflow: hidden; }
+.meter i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px; transition: width .4s; }
+.meter-row { display: flex; justify-content: space-between; font-size: 13px; color: var(--text-secondary); }
+.reco { display: flex; gap: 14px; align-items: flex-start; }
+.reco .ico { flex: none; width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); }
+.reco b { font-size: 17px; font-weight: 600; display: block; margin-bottom: 2px; }
+.facts { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 16px; }
+.fact .l { font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--text-muted); }
+.fact .v { font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* Controls */
+.head { display: flex; justify-content: space-between; gap: 14px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 14px; }
+.seg { display: inline-flex; gap: 4px; padding: 4px; }
+.seg button { background: none; border: 0; padding: 7px 14px; border-radius: 999px; font: inherit; font-size: 13px; color: var(--text-secondary); cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: #fff; box-shadow: 3px 3px 8px rgba(11,92,216,.3); }
+.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--grid); overflow-x: auto; }
+.tabs button { background: none; border: 0; padding: 8px 12px 9px; font: inherit; font-size: 14px; color: var(--text-secondary); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.tabs button[aria-pressed="true"] { color: var(--accent); border-bottom-color: var(--accent); font-weight: 500; }
+
+.scroll { overflow-x: auto; }
+svg text { fill: var(--text-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; color: var(--text-secondary); margin: 2px 0 12px; align-items: center; }
+.legend .chip { display: inline-flex; align-items: center; gap: 6px; }
+.legend .sq { width: 12px; height: 12px; border-radius: 4px; display: inline-block; }
+.sw { display: inline-block; width: 14px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+#tip { position: fixed; pointer-events: none; background: var(--card); color: var(--text-primary); border-radius: 12px; padding: 8px 11px;
+       font-size: 13px; box-shadow: 6px 6px 18px var(--lo), -2px -2px 8px var(--hi); display: none; z-index: 9; white-space: nowrap; }
+#tip b { font-variant-numeric: tabular-nums; }
+.quiet { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
+.quiet div { padding: 8px 14px; border-radius: 999px; font-size: 14px; }
+.quiet b { font-variant-numeric: tabular-nums; }
+footer { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-top: 14px;
+         font-size: 10px; letter-spacing: .28em; text-transform: uppercase; color: var(--text-muted); line-height: 1.9; }
+footer a { color: inherit; }
+footer .fr { text-align: right; }
+@media (max-width: 600px) { footer .fr { text-align: left; } }
+</style>
+</head>
+<body>
+<div class="viz-root">
+<main>
+  <section class="status">
+    <div class="card">
+      <h2>Gerade im Studio</h2>
+      <div style="margin-top:14px"><span class="pill inner" id="pill"><span class="dot" id="dot"></span><span id="lvl">–</span></span></div>
+      <div class="big" id="nowNum">–</div>
+      <div class="meta" id="nowMeta"></div>
+      <div class="meter well"><i id="bar"></i></div>
+      <div class="meter-row"><span id="barTxt"></span><span id="peakTxt"></span></div>
+    </div>
+    <div class="card">
+      <h2>Lohnt sich warten?</h2>
+      <div class="inner reco" style="margin-top:14px">
+        <div class="ico" id="recoIco"></div>
+        <div><b id="recoTitle">–</b><span class="sub" id="recoText"></span></div>
+      </div>
+      <div class="facts">
+        <div class="fact"><div class="l">Üblich jetzt</div><div class="v" id="typNow">–</div></div>
+        <div class="fact"><div class="l" id="nextL">In 1 Stunde</div><div class="v" id="typNext">–</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="head">
+      <div><h2>Wochenübersicht</h2><p class="sub">Durchschnitt je Wochentag und Uhrzeit · antippen öffnet den Tag</p></div>
+      <div class="seg well" id="range"></div>
+    </div>
+    <div class="legend" id="legend"></div>
+    <div class="scroll"><svg id="heat" role="img" aria-label="Heatmap der Belegung"></svg></div>
+  </section>
+
+  <section class="card">
+    <div class="head" style="margin-bottom:6px">
+      <div><h2>Tagesverlauf</h2><p class="sub">Durchschnitt vs. der Tag in der aktuellen Woche</p></div>
+    </div>
+    <div class="tabs" id="days"></div>
+    <div class="legend" style="margin-top:12px">
+      <span><i class="sw" style="background:var(--series-1)"></i>Durchschnitt</span>
+      <span><i class="sw" style="background:var(--series-2)"></i><span id="thisLbl">diese Woche</span></span>
+    </div>
+    <div class="scroll"><svg id="line" role="img" aria-label="Tagesverlauf"></svg></div>
+    <p class="sub" style="margin-top:14px">Ruhigste Stunden an diesem Tag</p>
+    <div class="quiet" id="quiet"></div>
+  </section>
+
+  <footer>
+    <div>Quelle: <a href="https://www.hochschulsport.uni-mannheim.de/angebote/aktueller_zeitraum_0/_T1_FitnessGym_Studiobelegung.html">Hochschulsport Mannheim</a><br><a id="rawLink" href="#">Rohdaten (CSV)</a></div>
+    <div class="fr">Ruhiger trainieren<br><span id="upd"></span></div>
+  </footer>
+</main>
+</div>
+<div id="tip"></div>
+
+<script>
+const DAYS = ["Mo","Di","Mi","Do","Fr","Sa","So"];
+const DAYS_LONG = ["Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag","Sonntag"];
+const css = n => getComputedStyle(document.querySelector(".viz-root")).getPropertyValue(n).trim();
+const tip = document.getElementById("tip");
+const $ = id => document.getElementById(id);
+const pad2 = n => String(n).padStart(2, "0");
+const slotLbl = s => `${pad2(Math.floor((s % 96) / 4))}:${pad2((s % 4) * 15)}`;
+const NS = "http://www.w3.org/2000/svg";
+const el = (tag, attrs = {}, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
+const nowSlot = () => { const d = new Date(); return { wd: (d.getDay() + 6) % 7, s: Math.round((d.getHours() * 60 + d.getMinutes()) / 15) % 96 }; };
+
+function showTip(ev, html) { tip.innerHTML = html; tip.style.display = "block";
+  const w = tip.offsetWidth, x = ev.clientX + 14 + w > innerWidth ? ev.clientX - w - 14 : ev.clientX + 14;
+  tip.style.left = x + "px"; tip.style.top = (ev.clientY + 16) + "px"; }
+function hideTip() { tip.style.display = "none"; }
+
+// ---------- Ampel ----------
+// Stufen relativ zur üblichen Spitze (höchster Durchschnittswert der Woche)
+const STEPS = [ // [bis Anteil der Spitze, Farbe, Name]
+  [0.20, "--amp-1", "sehr ruhig"], [0.40, "--amp-2", "ruhig"], [0.55, "--amp-3", "mittel"],
+  [0.70, "--amp-4", "gut besucht"], [Infinity, "--amp-5", "voll"]];
+const step = (v, peak) => STEPS.find(([t]) => v / peak < t);
+const LEVEL = { "sehr ruhig": "Ruhig", "ruhig": "Ruhig", "mittel": "Mittel", "gut besucht": "Gut besucht", "voll": "Voll" };
+
+// ---------- Daten ----------
+function parseCSV(text) {
+  return text.trim().split(/\r?\n/).slice(1).map(l => {
+    const [t, p] = l.split(",");
+    const m = t.match(/^(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d)/);
+    if (!m) return null;
+    const date = new Date(+m[1], +m[2] - 1, +m[3]);
+    return { t, date, key: `${m[1]}-${m[2]}-${m[3]}`, wd: (date.getDay() + 6) % 7,
+             slot: Math.round((+m[4] * 60 + +m[5]) / 15) % 96, hhmm: `${m[4]}:${m[5]}`, n: +p };
+  }).filter(r => r && !isNaN(r.n));
+}
+
+let ALL = [], LIVE = null, RANGE = "all", DAY = nowSlot().wd;
+
+function filtered() {
+  if (RANGE === "all") return ALL;
+  const cut = new Date(); cut.setDate(cut.getDate() - (RANGE === "4w" ? 28 : 14)); cut.setHours(0, 0, 0, 0);
+  return ALL.filter(r => r.date >= cut);
+}
+function averages(rows) {
+  const sum = Array.from({ length: 7 }, () => new Float64Array(96)), cnt = Array.from({ length: 7 }, () => new Uint32Array(96));
+  for (const r of rows) { sum[r.wd][r.slot] += r.n; cnt[r.wd][r.slot]++; }
+  return sum.map((s, wd) => Array.from(s, (v, i) => cnt[wd][i] ? v / cnt[wd][i] : null));
+}
+function slotRange(avg) {
+  let lo = 96, hi = -1;
+  avg.forEach(day => day.forEach((v, i) => { if (v) { lo = Math.min(lo, i); hi = Math.max(hi, i); } }));
+  // mindestens 06:00–23:00 zeigen, bei Daten außerhalb entsprechend mehr
+  lo = Math.min(24, hi < 0 ? 24 : Math.floor(lo / 4) * 4 - 4); hi = Math.max(91, hi < 0 ? 91 : Math.ceil((hi + 1) / 4) * 4 + 3);
+  return [Math.max(0, lo), Math.min(95, hi)];
+}
+const isOpen = v => v != null && v >= 0.5;
+const peakOf = avg => Math.max(1, ...avg.flat().filter(v => v != null));
+// Wert in "absoluten" Slots ab Wochenbeginn (über Tagesgrenzen hinweg)
+const at = (avg, abs) => avg[Math.floor(abs / 96) % 7][abs % 96];
+
+// ---------- Status + Empfehlung ----------
+const ICON = {
+  ok: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+  wait: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>',
+  moon: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M19 14.5A7.5 7.5 0 0 1 9.5 5a7.5 7.5 0 1 0 9.5 9.5z"/></svg>',
+};
+const fmtWait = m => m < 60 ? `${m} Min.` : `${Math.floor(m / 60)} Std.${m % 60 ? " " + (m % 60) + " Min." : ""}`;
+
+const MIN_DAYS = 3; // ab so vielen Messtagen gibt es Ampel und Empfehlung
+
+function drawStatus(avg) {
+  const peak = peakOf(avg), { wd, s } = nowSlot(), nowAbs = wd * 96 + s;
+  const nDays = new Set(ALL.map(r => r.key)).size, enough = nDays >= MIN_DAYS;
+  const last = LIVE || ALL[ALL.length - 1];
+  const ageMin = last ? Math.max(0, Math.round((new Date() - new Date(last.t)) / 60000)) : Infinity;
+  const fresh = ageMin <= 30;
+  const typ = avg[wd][s];
+  const open = fresh ? (last.n > 0 || isOpen(typ)) : isOpen(typ);
+  const val = fresh ? last.n : typ;
+  const ago = m => m < 1 ? "gerade eben" : m < 60 ? `vor ${m} Min.` : m < 1440 ? `vor ${Math.round(m / 60)} Std.` : `vor ${Math.round(m / 1440)} Tagen`;
+  const neutral = txt => { $("lvl").textContent = txt; $("dot").style.background = css("--closed"); $("bar").style.width = "0"; };
+
+  if (!last) {
+    neutral("Keine Daten"); $("nowNum").innerHTML = "–";
+    $("nowMeta").textContent = "Die erste Messung kommt in wenigen Minuten.";
+  } else if (fresh) {
+    $("nowNum").innerHTML = `${last.n}<small>Personen</small>`;
+    $("nowMeta").textContent = `Gemessen ${last.hhmm} Uhr · ${ago(ageMin)}`;
+    if (!open) neutral(last.n === 0 ? "Leer / zu" : "Geschlossen");
+    else if (!enough) neutral("Ampel folgt");
+    else { const st = step(val, peak); $("lvl").textContent = LEVEL[st[2]]; $("dot").style.background = css(st[1]);
+           $("bar").style.width = Math.min(100, val / peak * 100) + "%"; $("bar").style.background = css(st[1]); }
+  } else {
+    $("nowNum").innerHTML = enough && isOpen(typ) ? `${Math.round(typ)}<small>Personen üblich</small>` : `${last.n}<small>Personen</small>`;
+    $("nowMeta").textContent = `Keine aktuelle Messung · letzte ${ago(ageMin)} (${last.hhmm} Uhr)`;
+    if (enough && isOpen(typ)) { const st = step(typ, peak); $("lvl").textContent = LEVEL[st[2]] + " (üblich)"; $("dot").style.background = css(st[1]);
+           $("bar").style.width = Math.min(100, typ / peak * 100) + "%"; $("bar").style.background = css(st[1]); }
+    else neutral(enough ? "Vermutlich zu" : "Veraltet");
+  }
+  const showBar = enough && open && val != null;
+  $("barTxt").textContent = showBar ? `${Math.round(val / peak * 100)} % der üblichen Spitze` : (enough ? "" : `${nDays} von ${MIN_DAYS} Messtagen gesammelt`);
+  $("peakTxt").textContent = enough ? `Spitze ≈ ${Math.round(peak)}` : "";
+
+  const setReco = (ico, t, x) => { $("recoIco").innerHTML = ICON[ico]; $("recoTitle").textContent = t; $("recoText").textContent = x; };
+  if (!enough) {
+    setReco("wait", "Sammle noch Daten", `Empfehlungen gibt es ab ${MIN_DAYS} Tagen Messungen. Bisher: ${nDays}.`);
+    $("typNow").textContent = "–"; $("typNext").textContent = "–"; $("nextL").textContent = "In 1 Stunde";
+    return;
+  }
+  // Empfehlung: die nächsten Stunden durchsuchen
+  const future = [];
+  for (let k = 1; k <= 96 * 7; k++) future.push([k, at(avg, nowAbs + k)]);
+  const when = k => { const d = new Date(); d.setHours(0, (s + k) * 15, 0, 0);
+                      const day = (d.getDay() + 6) % 7; return (day === wd && k < 96 ? "" : DAYS_LONG[day] + " ") + `${pad2(d.getHours())}:${pad2(d.getMinutes())}`; };
+
+  if (!open) {
+    const nx = future.find(([, v]) => isOpen(v));
+    if (nx) {
+      const q = future.slice(nx[0] - 1, nx[0] + 7).filter(([, v]) => isOpen(v)).sort((a, b) => a[1] - b[1])[0];
+      setReco("moon", "Gerade geschlossen", `Öffnet vermutlich ${when(nx[0])} Uhr. Kurz danach ist es meist ruhig (Ø ${Math.round(q[1])}).`);
+    } else setReco("moon", "Gerade geschlossen", "Noch keine Daten zu den Öffnungszeiten.");
+  } else {
+    // nächste 4 Std., nur solange geöffnet
+    const today = [];
+    for (const f of future) { if (f[0] > 16 || !isOpen(f[1])) break; today.push(f); }
+    const lvlNow = val / peak;
+    const closes = today.length < 16 ? ` Schließt vermutlich gegen ${when(today.length + 1)} Uhr.` : "";
+    const rush = today.find(([k, v]) => k <= 4 && v / peak >= 0.7 && v > val * 1.25); // in <1 Std. deutlich voller
+    if (lvlNow < 0.4) {
+      const busy = today.find(([, v]) => v / peak >= 0.55);
+      setReco("ok", "Jetzt ist eine gute Zeit",
+        (busy ? `Ab etwa ${when(busy[0])} Uhr wird es üblicherweise voller.` + closes
+              : closes ? `Bis zum Schluss bleibt es meist ruhig.${closes}` : "In den nächsten Stunden bleibt es üblicherweise ruhig."));
+    } else if (rush && lvlNow < 0.7) {
+      const after = today.find(([k, v]) => k > rush[0] && v <= val);
+      setReco("ok", "Besser jetzt gehen",
+        `Ab etwa ${when(rush[0])} Uhr wird es voll` + (after ? ` und erst gegen ${when(after[0])} Uhr wieder so leer wie jetzt.` : ".") + closes);
+    } else {
+      // spürbar ruhiger = Ampel "ruhig" oder mindestens 25 % weniger als jetzt
+      const calm = today.find(([, v]) => v / peak < 0.4) || today.find(([, v]) => v <= val * 0.75);
+      if (calm) {
+        const mins = calm[0] * 15;
+        setReco("wait", mins <= 30 ? "Kurz warten lohnt sich" : `Lieber ca. ${fmtWait(mins)} warten`,
+          `Ab etwa ${when(calm[0])} Uhr meist ruhiger (Ø ${Math.round(calm[1])} statt ${Math.round(val)}).`);
+      } else {
+        const better = today.slice().sort((a, b) => a[1] - b[1])[0];
+        setReco("wait", lvlNow >= 0.7 ? "Bleibt voll" : "Wird nicht deutlich ruhiger",
+          better && better[1] < val * 0.85 ? `Am ehesten gegen ${when(better[0])} Uhr (Ø ${Math.round(better[1])}).` : "In den nächsten Stunden wird es nicht ruhiger. Jetzt gehen oder auf einen anderen Tag ausweichen.");
+      }
+    }
+  }
+  $("typNow").textContent = isOpen(typ) ? `Ø ${Math.round(typ)}` : "zu";
+  const t1 = at(avg, nowAbs + 4);
+  $("nextL").textContent = `Um ${when(4)}`;
+  $("typNext").textContent = isOpen(t1) ? `Ø ${Math.round(t1)}` : "zu";
+}
+
+// ---------- Heatmap ----------
+function drawHeat(avg, [lo, hi]) {
+  const svg = $("heat"); svg.innerHTML = "";
+  const peak = peakOf(avg), enough = new Set(ALL.map(r => r.key)).size >= MIN_DAYS;
+  $("legend").innerHTML = !enough ? `<span class="chip"><i class="sq" style="background:var(--series-1)"></i>gemessen</span>
+    <span class="chip"><i class="sq" style="background:var(--closed)"></i>noch keine Daten</span><span>· Ampelfarben ab ${MIN_DAYS} Messtagen</span>` : STEPS.map(([t, c, name], i) => `<span class="chip"><i class="sq" style="background:var(${c})"></i>${name}</span>`).join("") +
+    `<span class="chip"><i class="sq" style="background:var(--closed)"></i>geschlossen</span>`;
+  // schmale Bildschirme: halbe Stunden statt Viertelstunden, damit alles in die Breite passt
+  const box = svg.parentElement.clientWidth || 900, k = box < 700 ? 2 : 1;
+  const L = 30, T = 4, B = 24, ch = box < 700 ? 26 : 30, gap = box < 700 ? 2 : 3;
+  const cells = []; for (let s = lo; s <= hi; s += k) cells.push(s);
+  const cw = Math.max(6, (box - L) / cells.length), W = L + cells.length * cw, H = T + 7 * ch + B;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.style.width = "100%"; svg.style.height = "auto";
+  const cellVal = (wd, s) => { const v = avg[wd].slice(s, s + k).filter(x => x != null); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
+  const ns = nowSlot();
+  for (let wd = 0; wd < 7; wd++) {
+    const y = T + wd * ch;
+    const lbl = el("text", { x: 0, y: y + ch / 2 + 2, "font-size": 12 }, svg); lbl.textContent = DAYS[wd];
+    if (wd === ns.wd) { lbl.style.fill = css("--accent"); lbl.style.fontWeight = 600; }
+    for (const [ci, s] of cells.entries()) {
+      const v = cellVal(wd, s), x = L + ci * cw, st = isOpen(v) ? step(v, peak) : null;
+      const fill = !enough ? (v != null ? css("--series-1") : css("--closed")) : st ? css(st[1]) : css("--closed");
+      const r = el("rect", { x, y, width: cw - gap, height: ch - gap, rx: 3, fill, style: "cursor:pointer" }, svg);
+      r.addEventListener("mousemove", ev => showTip(ev, `<b>${DAYS_LONG[wd]}, ${slotLbl(s)}${k > 1 ? "–" + slotLbl(s + k) : ""}</b><br>` +
+        (v == null ? "keine Daten" : !enough ? `Ø <b>${v.toFixed(1)}</b> Personen` : st ? `Ø <b>${v.toFixed(1)}</b> Personen · ${st[2]}` : "geschlossen / leer")));
+      r.addEventListener("mouseleave", hideTip);
+      r.addEventListener("click", () => { DAY = wd; render(); document.getElementById("days").scrollIntoView({ behavior: "smooth", block: "center" }); });
+    }
+  }
+  const every = box < 700 ? 16 : 8;
+  cells.forEach((s, ci) => { if (s % every === 0) el("text", { x: L + ci * cw, y: H - 6 }, svg).textContent = slotLbl(s); });
+  const nci = cells.findIndex(s => ns.s >= s && ns.s < s + k);
+  if (nci >= 0) el("rect", { x: L + nci * cw - 1.5, y: T + ns.wd * ch - 1.5, width: cw, height: ch, rx: 4,
+      fill: "none", stroke: css("--text-primary"), "stroke-width": 2, "pointer-events": "none" }, svg);
+}
+
+// ---------- Tagesverlauf ----------
+function weekStart(d) { const x = new Date(d); x.setHours(0, 0, 0, 0); x.setDate(x.getDate() - (x.getDay() + 6) % 7); return x; }
+
+function drawLine(avg, [lo, hi]) {
+  const svg = $("line"); svg.innerHTML = "";
+  const ws = weekStart(new Date()), target = new Date(ws); target.setDate(ws.getDate() + DAY);
+  const tkey = `${target.getFullYear()}-${pad2(target.getMonth() + 1)}-${pad2(target.getDate())}`;
+  $("thisLbl").textContent = `${DAYS_LONG[DAY]}, ${target.getDate()}.${target.getMonth() + 1}.` + (target > new Date() ? " (noch nicht)" : "");
+  const cur = new Array(96).fill(null);
+  for (const r of ALL) if (r.key === tkey) cur[r.slot] = r.n;
+  const a = avg[DAY];
+  const W = Math.max(320, svg.parentElement.clientWidth || 1000), H = W < 600 ? 220 : 270, L = 30, R = 8, T = 14, B = 26;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.style.width = "100%"; svg.style.height = "auto";
+  const vals = [...a.slice(lo, hi + 1), ...cur.slice(lo, hi + 1)].filter(v => v != null);
+  const ymax = Math.max(10, Math.ceil(Math.max(...vals, 0) / 10) * 10);
+  const X = s => L + (s - lo) / (hi - lo) * (W - L - R), Y = v => T + (1 - v / ymax) * (H - T - B);
+  for (let g = 0; g <= ymax; g += ymax > 40 ? 20 : 10) {
+    el("line", { x1: L, x2: W - R, y1: Y(g), y2: Y(g), stroke: css("--grid"), "stroke-width": 1 }, svg);
+    el("text", { x: L - 8, y: Y(g) + 4, "text-anchor": "end" }, svg).textContent = g;
+  }
+  for (let s = lo; s <= hi; s++) if (s % (W < 600 ? 16 : 8) === 0) el("text", { x: X(s), y: H - 6, "text-anchor": "middle" }, svg).textContent = slotLbl(s);
+  const ns = nowSlot();
+  if (DAY === ns.wd && ns.s >= lo && ns.s <= hi) {
+    el("line", { x1: X(ns.s), x2: X(ns.s), y1: T, y2: H - B, stroke: css("--accent"), "stroke-width": 1, "stroke-dasharray": "3 4" }, svg);
+    el("text", { x: X(ns.s) + 5, y: T + 8, style: `fill:${css("--accent")}` }, svg).textContent = "jetzt";
+  }
+  const path = (arr, color) => {
+    let d = "", pen = false;
+    for (let s = lo; s <= hi; s++) { const v = arr[s]; if (v == null) { pen = false; continue; }
+      d += (pen ? "L" : "M") + X(s).toFixed(1) + "," + Y(v).toFixed(1); pen = true; }
+    if (d) el("path", { d, fill: "none", stroke: color, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }, svg);
+  };
+  path(a, css("--series-1")); path(cur, css("--series-2"));
+  // einzelne Messpunkte sichtbar machen, solange es wenige sind
+  for (const [arr, c] of [[a, css("--series-1")], [cur, css("--series-2")]]) {
+    const pts = []; for (let s = lo; s <= hi; s++) if (arr[s] != null) pts.push(s);
+    if (pts.length < 24) pts.forEach(s => el("circle", { cx: X(s), cy: Y(arr[s]), r: 4, fill: c, stroke: css("--card"), "stroke-width": 2 }, svg));
+  }
+  const cross = el("line", { y1: T, y2: H - B, stroke: css("--text-muted"), "stroke-width": 1, visibility: "hidden" }, svg);
+  const d1 = el("circle", { r: 4.5, fill: css("--series-1"), stroke: css("--card"), "stroke-width": 2, visibility: "hidden" }, svg);
+  const d2 = el("circle", { r: 4.5, fill: css("--series-2"), stroke: css("--card"), "stroke-width": 2, visibility: "hidden" }, svg);
+  const hit = el("rect", { x: L, y: T, width: W - L - R, height: H - T - B, fill: "transparent" }, svg);
+  hit.addEventListener("mousemove", ev => {
+    const p = svg.createSVGPoint(); p.x = ev.clientX; p.y = ev.clientY;
+    const loc = p.matrixTransform(svg.getScreenCTM().inverse());
+    const s = Math.max(lo, Math.min(hi, Math.round(lo + (loc.x - L) / (W - L - R) * (hi - lo))));
+    cross.setAttribute("x1", X(s)); cross.setAttribute("x2", X(s)); cross.setAttribute("visibility", "visible");
+    for (const [dot, v] of [[d1, a[s]], [d2, cur[s]]]) {
+      if (v == null) dot.setAttribute("visibility", "hidden");
+      else { dot.setAttribute("cx", X(s)); dot.setAttribute("cy", Y(v)); dot.setAttribute("visibility", "visible"); }
+    }
+    showTip(ev, `<b>${slotLbl(s)}</b><br><i class="sw" style="background:${css("--series-1")}"></i>Ø ${a[s] == null ? "–" : `<b>${a[s].toFixed(1)}</b>`}` +
+      `<br><i class="sw" style="background:${css("--series-2")}"></i>diese Woche ${cur[s] == null ? "–" : `<b>${cur[s]}</b>`}`);
+  });
+  hit.addEventListener("mouseleave", () => { hideTip(); [cross, d1, d2].forEach(e => e.setAttribute("visibility", "hidden")); });
+
+  const peak = peakOf(avg), cand = [];
+  for (let s = lo; s + 3 <= hi; s++) {
+    const win = a.slice(s, s + 4);
+    if (win.some(v => !isOpen(v))) continue;
+    cand.push([s, win.reduce((x, y) => x + y, 0) / 4]);
+  }
+  cand.sort((x, y) => x[1] - y[1]);
+  const pick = [];
+  for (const c of cand) { if (pick.every(p => Math.abs(p[0] - c[0]) >= 6)) pick.push(c); if (pick.length === 3) break; }
+  $("quiet").innerHTML = pick.length ? pick.sort((x, y) => x[0] - y[0]).map(([s, v]) =>
+    `<div class="inner"><i class="sq" style="display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:8px;background:var(${step(v, peak)[1]})"></i>${slotLbl(s)}–${slotLbl(s + 4)} · Ø <b>${v.toFixed(0)}</b></div>`).join("")
+    : `<span class="sub">noch keine Daten</span>`;
+}
+
+function controls() {
+  $("range").innerHTML = [["all", "Alles"], ["4w", "4 Wochen"], ["2w", "2 Wochen"]]
+    .map(([k, l]) => `<button aria-pressed="${RANGE === k}" data-k="${k}">${l}</button>`).join("");
+  $("range").querySelectorAll("button").forEach(b => b.onclick = () => { RANGE = b.dataset.k; render(); });
+  $("days").innerHTML = DAYS_LONG.map((d, i) => `<button aria-pressed="${DAY === i}" data-i="${i}">${innerWidth < 600 ? DAYS[i] : d}</button>`).join("");
+  $("days").querySelectorAll("button").forEach(b => b.onclick = () => { DAY = +b.dataset.i; render(); });
+}
+
+function render() {
+  controls();
+  const avg = averages(filtered()), rng = slotRange(averages(ALL));
+  drawStatus(avg); drawHeat(avg, rng); drawLine(avg, rng);
+}
+
+// Daten liegen im data-Branch des Repos; so muss die Seite nicht bei jeder Messung neu gebaut werden.
+// Account- und Repo-Name kommen aus der Adresse: https://ACCOUNT.github.io/REPO/
+const OWNER = location.hostname.split(".")[0];
+const REPO = location.pathname.split("/")[1] || "gym-belegung";
+document.getElementById("rawLink").href = `https://github.com/${OWNER}/${REPO}/blob/data/data/belegung.csv`;
+const RAW = f => `https://raw.githubusercontent.com/${OWNER}/${REPO}/data/data/${f}`;
+const API = f => `https://api.github.com/repos/${OWNER}/${REPO}/contents/data/${f}?ref=data`;
+
+async function getText(f, fresh) {
+  // API = topaktuell, aber max. 60 Abrufe/Std. pro Gerät -> nur für live.json; raw = bis zu 5 Min. Cache
+  const api = [API(f), { headers: { Accept: "application/vnd.github.raw" }, cache: "no-store" }], raw = [RAW(f) + "?" + Date.now(), {}];
+  for (const [url, opt] of fresh ? [api, raw] : [raw, api]) {
+    try { const r = await fetch(url, opt); if (r.ok) return await r.text(); } catch (e) { /* nächste Quelle */ }
+  }
+  return null;
+}
+
+async function loadLive() {
+  const t = await getText("live.json", true);
+  try { const j = JSON.parse(t); const m = j.zeit.match(/T(\d\d:\d\d)/); LIVE = { t: j.zeit, n: j.personen, hhmm: m[1] }; } catch (e) { /* noch keine */ }
+}
+
+async function load(full = true) {
+  if (full) { const csv = await getText("belegung.csv", false); ALL = csv ? parseCSV(csv) : []; }
+  await loadLive();
+  const l = ALL[ALL.length - 1];
+  if (l && (!LIVE || new Date(l.t) > new Date(LIVE.t))) LIVE = { t: l.t, n: l.n, hhmm: l.hhmm };
+  $("upd").textContent = "Stand " + new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+  render();
+}
+load();
+setInterval(() => { if (!document.hidden) load(false); }, 2 * 60 * 1000);  // alle 2 Min. neueste Messung
+setInterval(() => { if (!document.hidden) load(true); }, 15 * 60 * 1000);  // alle 15 Min. auch den Verlauf
+document.addEventListener("visibilitychange", () => { if (!document.hidden) load(true); }); // beim Zurückkehren zur Seite
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
+let rt; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(render, 150); });
+</script>
+</body>
+</html>
