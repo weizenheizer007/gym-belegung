@@ -113,6 +113,7 @@ h2 { font-size: 13px; font-weight: 500; letter-spacing: .2em; text-transform: up
 svg text { fill: var(--text-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
 .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; color: var(--text-secondary); margin: 2px 0 12px; align-items: center; }
 .legend .chip { display: inline-flex; align-items: center; gap: 6px; }
+.legend .grad { display: inline-block; width: 110px; height: 10px; border-radius: 999px; background: linear-gradient(90deg, var(--amp-1), var(--amp-2) 30%, var(--amp-3) 47%, var(--amp-4) 62%, var(--amp-5) 85%); }
 .legend .sq { width: 12px; height: 12px; border-radius: 4px; display: inline-block; }
 .sw { display: inline-block; width: 14px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
 #tip { position: fixed; pointer-events: none; background: var(--card); color: var(--text-primary); border-radius: 12px; padding: 8px 11px;
@@ -217,7 +218,7 @@ function parseCSV(text) {
     if (!m) return null;
     const date = new Date(+m[1], +m[2] - 1, +m[3]);
     return { t, date, key: `${m[1]}-${m[2]}-${m[3]}`, wd: (date.getDay() + 6) % 7,
-             slot: Math.round((+m[4] * 60 + +m[5]) / 15) % 96, hhmm: `${m[4]}:${m[5]}`, n: +p };
+             slot: Math.round((+m[4] * 60 + +m[5]) / 15) % 96, min: +m[4] * 60 + +m[5], hhmm: `${m[4]}:${m[5]}`, n: +p };
   }).filter(r => r && !isNaN(r.n));
 }
 
@@ -343,39 +344,84 @@ function drawStatus(avg) {
 }
 
 // ---------- Heatmap ----------
+// Ampelfarbe stufenlos: 0 = leer … 1 = übliche Spitze
+const AMP_STOPS = [[0, "--amp-1"], [0.3, "--amp-2"], [0.475, "--amp-3"], [0.625, "--amp-4"], [0.85, "--amp-5"]];
+const hexRgb = h => { h = h.replace("#", ""); return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16)); };
+function ampColor(f) {
+  f = Math.max(0, Math.min(1, f));
+  for (let i = 1; i < AMP_STOPS.length; i++) {
+    const [p1, c1] = AMP_STOPS[i - 1], [p2, c2] = AMP_STOPS[i];
+    if (f <= p2) { const t = (f - p1) / (p2 - p1), a = hexRgb(css(c1)), b = hexRgb(css(c2));
+      return `rgb(${a.map((v, k) => Math.round(v + (b[k] - v) * t)).join(",")})`; }
+  }
+  return css(AMP_STOPS[AMP_STOPS.length - 1][1]);
+}
+// leicht glätten (gewichteter Durchschnitt mit den Nachbar-Viertelstunden), Lücken bleiben Lücken
+const smooth = arr => arr.map((v, i) => {
+  if (v == null) return null;
+  let s = v * 2, w = 2;
+  for (const j of [i - 1, i + 1]) if (arr[j] != null) { s += arr[j]; w++; }
+  return s / w;
+});
+// Weiche Kurve durch Punkte ohne Überschwinger (monotone kubische Interpolation)
+function curve(pts) {
+  if (pts.length < 2) return "";
+  const n = pts.length, dx = [], m = [], t = [];
+  for (let i = 0; i < n - 1; i++) { dx[i] = pts[i + 1][0] - pts[i][0]; m[i] = (pts[i + 1][1] - pts[i][1]) / dx[i]; }
+  t[0] = m[0]; t[n - 1] = m[n - 2];
+  for (let i = 1; i < n - 1; i++) t[i] = m[i - 1] * m[i] <= 0 ? 0 : 3 * (dx[i - 1] + dx[i]) / ((2 * dx[i] + dx[i - 1]) / m[i - 1] + (dx[i] + 2 * dx[i - 1]) / m[i]);
+  let d = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
+  for (let i = 0; i < n - 1; i++) {
+    const h = dx[i] / 3;
+    d += `C${(pts[i][0] + h).toFixed(1)},${(pts[i][1] + t[i] * h).toFixed(1)} ${(pts[i + 1][0] - h).toFixed(1)},${(pts[i + 1][1] - t[i + 1] * h).toFixed(1)} ${pts[i + 1][0].toFixed(1)},${pts[i + 1][1].toFixed(1)}`;
+  }
+  return d;
+}
+// zusammenhängende Abschnitte (Lücke > maxGap trennt)
+function runs(pts, maxGap) {
+  const out = []; let cur = [];
+  for (const p of pts) { if (cur.length && p[0] - cur[cur.length - 1][0] > maxGap) { out.push(cur); cur = []; } cur.push(p); }
+  if (cur.length) out.push(cur);
+  return out;
+}
+
 function drawHeat(avg, [lo, hi]) {
   const svg = $("heat"); svg.innerHTML = "";
   const peak = peakOf(avg), enough = new Set(ALL.map(r => r.key)).size >= MIN_DAYS;
-  $("legend").innerHTML = !enough ? `<span class="chip"><i class="sq" style="background:var(--series-1)"></i>gemessen</span>
-    <span class="chip"><i class="sq" style="background:var(--closed)"></i>noch keine Daten</span><span>· Ampelfarben ab ${MIN_DAYS} Messtagen</span>` : STEPS.map(([t, c, name], i) => `<span class="chip"><i class="sq" style="background:var(${c})"></i>${name}</span>`).join("") +
-    `<span class="chip"><i class="sq" style="background:var(--closed)"></i>geschlossen</span>`;
-  // schmale Bildschirme: halbe Stunden statt Viertelstunden, damit alles in die Breite passt
-  const box = svg.parentElement.clientWidth || 900, k = box < 700 ? 2 : 1;
-  const L = 30, T = 4, B = 24, ch = box < 700 ? 26 : 30, gap = box < 700 ? 2 : 3;
-  const cells = []; for (let s = lo; s <= hi; s += k) cells.push(s);
-  const cw = Math.max(6, (box - L) / cells.length), W = L + cells.length * cw, H = T + 7 * ch + B;
+  $("legend").innerHTML = !enough
+    ? `<span class="chip"><i class="sq" style="background:var(--series-1)"></i>gemessen</span>
+       <span class="chip"><i class="sq" style="background:var(--closed)"></i>noch keine Daten</span><span>· Ampelfarben ab ${MIN_DAYS} Messtagen</span>`
+    : `<span class="chip">ruhig <i class="grad"></i> voll</span><span class="chip"><i class="sq" style="background:var(--closed)"></i>geschlossen</span>`;
+  const box = svg.parentElement.clientWidth || 900, narrow = box < 700;
+  const L = 30, T = 4, B = 24, ch = narrow ? 26 : 30, bar = ch - (narrow ? 8 : 9);
+  const W = box, H = T + 7 * ch + B, n = hi - lo + 1;
+  const X = s => L + (s - lo) / n * (W - L);                 // linker Rand der Viertelstunde s
   svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.style.width = "100%"; svg.style.height = "auto";
-  const cellVal = (wd, s) => { const v = avg[wd].slice(s, s + k).filter(x => x != null); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
-  const ns = nowSlot();
+  const defs = el("defs", {}, svg), ns = nowSlot(), closed = css("--closed");
   for (let wd = 0; wd < 7; wd++) {
-    const y = T + wd * ch;
-    const lbl = el("text", { x: 0, y: y + ch / 2 + 2, "font-size": 12 }, svg); lbl.textContent = DAYS[wd];
+    const y = T + wd * ch + (ch - bar) / 2, sm = smooth(avg[wd]);
+    const lbl = el("text", { x: 0, y: T + wd * ch + ch / 2 + 4, "font-size": 12 }, svg); lbl.textContent = DAYS[wd];
     if (wd === ns.wd) { lbl.style.fill = css("--accent"); lbl.style.fontWeight = 600; }
-    for (const [ci, s] of cells.entries()) {
-      const v = cellVal(wd, s), x = L + ci * cw, st = isOpen(v) ? step(v, peak) : null;
-      const fill = !enough ? (v != null ? css("--series-1") : css("--closed")) : st ? css(st[1]) : css("--closed");
-      const r = el("rect", { x, y, width: cw - gap, height: ch - gap, rx: 3, fill, style: "cursor:pointer" }, svg);
-      r.addEventListener("mousemove", ev => showTip(ev, `<b>${DAYS_LONG[wd]}, ${slotLbl(s)}${k > 1 ? "–" + slotLbl(s + k) : ""}</b><br>` +
-        (v == null ? "keine Daten" : !enough ? `Ø <b>${v.toFixed(1)}</b> Personen` : st ? `Ø <b>${v.toFixed(1)}</b> Personen · ${st[2]}` : "geschlossen / leer")));
-      r.addEventListener("mouseleave", hideTip);
-      r.addEventListener("click", () => { DAY = wd; render(); document.getElementById("days").scrollIntoView({ behavior: "smooth", block: "center" }); });
+    const g = el("linearGradient", { id: "hg" + wd, gradientUnits: "userSpaceOnUse", x1: L, x2: W, y1: 0, y2: 0 }, defs);
+    for (let s = lo; s <= hi; s++) {
+      const v = sm[s], c = v == null ? closed : !enough ? css("--series-1") : isOpen(v) ? ampColor(v / peak) : closed;
+      el("stop", { offset: ((s - lo + 0.5) / n).toFixed(4), "stop-color": c }, g);
     }
+    const r = el("rect", { x: L, y, width: W - L, height: bar, rx: bar / 2, fill: `url(#hg${wd})`, style: "cursor:pointer" }, svg);
+    const slotAt = ev => { const p = svg.createSVGPoint(); p.x = ev.clientX; p.y = ev.clientY;
+      const x = p.matrixTransform(svg.getScreenCTM().inverse()).x; return Math.max(lo, Math.min(hi, lo + Math.floor((x - L) / (W - L) * n))); };
+    r.addEventListener("mousemove", ev => { const s = slotAt(ev), v = avg[wd][s];
+      showTip(ev, `<b>${DAYS_LONG[wd]}, ${slotLbl(s)}</b><br>` + (v == null ? "keine Daten" : !enough ? `Ø <b>${v.toFixed(1)}</b> Personen`
+        : isOpen(v) ? `Ø <b>${v.toFixed(1)}</b> Personen · ${step(v, peak)[2]}` : "geschlossen / leer")); });
+    r.addEventListener("mouseleave", hideTip);
+    r.addEventListener("click", () => { DAY = wd; render(); $("days").scrollIntoView({ behavior: "smooth", block: "center" }); });
   }
-  const every = box < 700 ? 16 : 8;
-  cells.forEach((s, ci) => { if (s % every === 0) el("text", { x: L + ci * cw, y: H - 6 }, svg).textContent = slotLbl(s); });
-  const nci = cells.findIndex(s => ns.s >= s && ns.s < s + k);
-  if (nci >= 0) el("rect", { x: L + nci * cw - 1.5, y: T + ns.wd * ch - 1.5, width: cw, height: ch, rx: 4,
-      fill: "none", stroke: css("--text-primary"), "stroke-width": 2, "pointer-events": "none" }, svg);
+  for (let s = lo; s <= hi; s++) if (s % (narrow ? 16 : 8) === 0) el("text", { x: X(s), y: H - 6, "text-anchor": "middle" }, svg).textContent = slotLbl(s);
+  if (ns.s >= lo && ns.s <= hi) { // "jetzt": feiner Strich mit Punkt auf dem heutigen Streifen
+    const x = X(ns.s) + (W - L) / n / 2, y = T + ns.wd * ch;
+    el("line", { x1: x, x2: x, y1: y + 1, y2: y + ch - 1, stroke: css("--text-primary"), "stroke-width": 2, "stroke-linecap": "round", "pointer-events": "none" }, svg);
+    el("circle", { cx: x, cy: y + 1, r: 3, fill: css("--text-primary"), "pointer-events": "none" }, svg);
+  }
 }
 
 // ---------- Tagesverlauf ----------
@@ -386,51 +432,61 @@ function drawLine(avg, [lo, hi]) {
   const ws = weekStart(new Date()), target = new Date(ws); target.setDate(ws.getDate() + DAY);
   const tkey = `${target.getFullYear()}-${pad2(target.getMonth() + 1)}-${pad2(target.getDate())}`;
   $("thisLbl").textContent = `${DAYS_LONG[DAY]}, ${target.getDate()}.${target.getMonth() + 1}.` + (target > new Date() ? " (noch nicht)" : "");
-  const cur = new Array(96).fill(null);
-  for (const r of ALL) if (r.key === tkey) cur[r.slot] = r.n;
-  const a = avg[DAY];
+  // diese Woche: jede einzelne Messung mit exakter Uhrzeit (Minuten)
+  const cur = ALL.filter(r => r.key === tkey).map(r => [r.min, r.n]).sort((p, q) => p[0] - q[0]);
+  const a = avg[DAY], sm = smooth(a);
   const W = Math.max(320, svg.parentElement.clientWidth || 1000), H = W < 600 ? 220 : 270, L = 30, R = 8, T = 14, B = 26;
   svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.style.width = "100%"; svg.style.height = "auto";
-  const vals = [...a.slice(lo, hi + 1), ...cur.slice(lo, hi + 1)].filter(v => v != null);
+  const m0 = lo * 15, m1 = hi * 15;
+  const vals = [...a.slice(lo, hi + 1), ...cur.map(p => p[1])].filter(v => v != null);
   const ymax = Math.max(10, Math.ceil(Math.max(...vals, 0) / 10) * 10);
-  const X = s => L + (s - lo) / (hi - lo) * (W - L - R), Y = v => T + (1 - v / ymax) * (H - T - B);
+  const X = m => L + (m - m0) / (m1 - m0) * (W - L - R), Y = v => T + (1 - v / ymax) * (H - T - B);
   for (let g = 0; g <= ymax; g += ymax > 40 ? 20 : 10) {
     el("line", { x1: L, x2: W - R, y1: Y(g), y2: Y(g), stroke: css("--grid"), "stroke-width": 1 }, svg);
     el("text", { x: L - 8, y: Y(g) + 4, "text-anchor": "end" }, svg).textContent = g;
   }
-  for (let s = lo; s <= hi; s++) if (s % (W < 600 ? 16 : 8) === 0) el("text", { x: X(s), y: H - 6, "text-anchor": "middle" }, svg).textContent = slotLbl(s);
+  for (let s = lo; s <= hi; s++) if (s % (W < 600 ? 16 : 8) === 0) el("text", { x: X(s * 15), y: H - 6, "text-anchor": "middle" }, svg).textContent = slotLbl(s);
+  const defs = el("defs", {}, svg);
+  const fade = (id, color, top) => { const g = el("linearGradient", { id, x1: 0, x2: 0, y1: 0, y2: 1 }, defs);
+    el("stop", { offset: 0, "stop-color": color, "stop-opacity": top }, g); el("stop", { offset: 1, "stop-color": color, "stop-opacity": 0 }, g); };
+  fade("fa", css("--series-1"), 0.28);
+  const draw = (pts, color, fillId, gap) => {
+    for (const run of runs(pts, gap)) {
+      const xy = run.map(([m, v]) => [X(m), Y(v)]);
+      if (xy.length === 1) { el("circle", { cx: xy[0][0], cy: xy[0][1], r: 4, fill: color, stroke: css("--card"), "stroke-width": 2 }, svg); continue; }
+      const d = curve(xy);
+      if (fillId) el("path", { d: `${d}L${xy[xy.length - 1][0].toFixed(1)},${Y(0)}L${xy[0][0].toFixed(1)},${Y(0)}Z`, fill: `url(#${fillId})` }, svg);
+      el("path", { d, fill: "none", stroke: color, "stroke-width": 2.5, "stroke-linecap": "round", "stroke-linejoin": "round" }, svg);
+    }
+  };
+  const avgPts = []; for (let s = lo; s <= hi; s++) if (sm[s] != null) avgPts.push([s * 15, sm[s]]);
+  draw(avgPts, css("--series-1"), "fa", 30);
+  // Einzelmessungen schwanken; für die Linie über ±10 Min. mitteln (Tooltip zeigt die echten Werte)
+  const curSm = cur.map(([m]) => { const w = cur.filter(q => Math.abs(q[0] - m) <= 10); return [m, w.reduce((x, q) => x + q[1], 0) / w.length]; });
+  draw(curSm, css("--series-2"), null, 30);
   const ns = nowSlot();
   if (DAY === ns.wd && ns.s >= lo && ns.s <= hi) {
-    el("line", { x1: X(ns.s), x2: X(ns.s), y1: T, y2: H - B, stroke: css("--accent"), "stroke-width": 1, "stroke-dasharray": "3 4" }, svg);
-    el("text", { x: X(ns.s) + 5, y: T + 8, style: `fill:${css("--accent")}` }, svg).textContent = "jetzt";
-  }
-  const path = (arr, color) => {
-    let d = "", pen = false;
-    for (let s = lo; s <= hi; s++) { const v = arr[s]; if (v == null) { pen = false; continue; }
-      d += (pen ? "L" : "M") + X(s).toFixed(1) + "," + Y(v).toFixed(1); pen = true; }
-    if (d) el("path", { d, fill: "none", stroke: color, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }, svg);
-  };
-  path(a, css("--series-1")); path(cur, css("--series-2"));
-  // einzelne Messpunkte sichtbar machen, solange es wenige sind
-  for (const [arr, c] of [[a, css("--series-1")], [cur, css("--series-2")]]) {
-    const pts = []; for (let s = lo; s <= hi; s++) if (arr[s] != null) pts.push(s);
-    if (pts.length < 24) pts.forEach(s => el("circle", { cx: X(s), cy: Y(arr[s]), r: 4, fill: c, stroke: css("--card"), "stroke-width": 2 }, svg));
+    const nm = new Date().getHours() * 60 + new Date().getMinutes();
+    el("line", { x1: X(nm), x2: X(nm), y1: T, y2: H - B, stroke: css("--accent"), "stroke-width": 1, "stroke-dasharray": "3 4" }, svg);
+    el("text", { x: X(nm) + 5, y: T + 8, style: `fill:${css("--accent")}` }, svg).textContent = "jetzt";
   }
   const cross = el("line", { y1: T, y2: H - B, stroke: css("--text-muted"), "stroke-width": 1, visibility: "hidden" }, svg);
-  const d1 = el("circle", { r: 4.5, fill: css("--series-1"), stroke: css("--card"), "stroke-width": 2, visibility: "hidden" }, svg);
-  const d2 = el("circle", { r: 4.5, fill: css("--series-2"), stroke: css("--card"), "stroke-width": 2, visibility: "hidden" }, svg);
+  const d1 = el("circle", { r: 5, fill: css("--series-1"), stroke: css("--card"), "stroke-width": 2, visibility: "hidden" }, svg);
+  const d2 = el("circle", { r: 5, fill: css("--series-2"), stroke: css("--card"), "stroke-width": 2, visibility: "hidden" }, svg);
   const hit = el("rect", { x: L, y: T, width: W - L - R, height: H - T - B, fill: "transparent" }, svg);
   hit.addEventListener("mousemove", ev => {
     const p = svg.createSVGPoint(); p.x = ev.clientX; p.y = ev.clientY;
-    const loc = p.matrixTransform(svg.getScreenCTM().inverse());
-    const s = Math.max(lo, Math.min(hi, Math.round(lo + (loc.x - L) / (W - L - R) * (hi - lo))));
-    cross.setAttribute("x1", X(s)); cross.setAttribute("x2", X(s)); cross.setAttribute("visibility", "visible");
-    for (const [dot, v] of [[d1, a[s]], [d2, cur[s]]]) {
-      if (v == null) dot.setAttribute("visibility", "hidden");
-      else { dot.setAttribute("cx", X(s)); dot.setAttribute("cy", Y(v)); dot.setAttribute("visibility", "visible"); }
-    }
+    const m = m0 + (p.matrixTransform(svg.getScreenCTM().inverse()).x - L) / (W - L - R) * (m1 - m0);
+    const s = Math.max(lo, Math.min(hi, Math.round(m / 15)));
+    const c = cur.reduce((best, q) => Math.abs(q[0] - m) < 8 && (!best || Math.abs(q[0] - m) < Math.abs(best[0] - m)) ? q : best, null);
+    cross.setAttribute("x1", X(m)); cross.setAttribute("x2", X(m)); cross.setAttribute("visibility", "visible");
+    if (sm[s] == null) d1.setAttribute("visibility", "hidden");
+    else { d1.setAttribute("cx", X(s * 15)); d1.setAttribute("cy", Y(sm[s])); d1.setAttribute("visibility", "visible"); }
+    if (!c) d2.setAttribute("visibility", "hidden");
+    else { const cs = curSm.find(q => q[0] === c[0]); d2.setAttribute("cx", X(c[0])); d2.setAttribute("cy", Y(cs ? cs[1] : c[1])); d2.setAttribute("visibility", "visible"); }
+    const hm = q => `${pad2(Math.floor(q / 60))}:${pad2(q % 60)}`;
     showTip(ev, `<b>${slotLbl(s)}</b><br><i class="sw" style="background:${css("--series-1")}"></i>Ø ${a[s] == null ? "–" : `<b>${a[s].toFixed(1)}</b>`}` +
-      `<br><i class="sw" style="background:${css("--series-2")}"></i>diese Woche ${cur[s] == null ? "–" : `<b>${cur[s]}</b>`}`);
+      `<br><i class="sw" style="background:${css("--series-2")}"></i>${c ? `${hm(c[0])} Uhr: <b>${c[1]}</b>` : "diese Woche –"}`);
   });
   hit.addEventListener("mouseleave", () => { hideTip(); [cross, d1, d2].forEach(e => e.setAttribute("visibility", "hidden")); });
 
