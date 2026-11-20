@@ -1,0 +1,64 @@
+name: Logbuch eintragen
+
+# Ein Issue mit dem Titel „Logbuch: leer|ok|voll“ wird zu einer Zeile in data/logbuch.csv.
+# Die Knöpfe auf der Webseite öffnen so ein Issue vorausgefüllt.
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: abfrage            # gleiche Gruppe wie die Messung -> keine Push-Konflikte
+  cancel-in-progress: false
+
+jobs:
+  eintragen:
+    # nur eigene Einträge, damit Fremde die Kalibrierung nicht verfälschen
+    if: startsWith(github.event.issue.title, 'Logbuch') && github.event.issue.user.login == github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/checkout@v5
+        with:
+          ref: data
+          path: store
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Eintrag schreiben
+        id: log
+        env:
+          DATA_DIR: store/data
+          TITLE: ${{ github.event.issue.title }}
+          BODY: ${{ github.event.issue.body }}
+          CREATED: ${{ github.event.issue.created_at }}
+        run: |
+          set +e
+          msg=$(python scraper/logbuch.py); code=$?
+          echo "$msg"
+          { echo "msg<<EOF"; echo "$msg"; echo "EOF"; } >> "$GITHUB_OUTPUT"
+          exit $code
+
+      - name: Speichern (commit in data-Branch)
+        working-directory: store
+        run: |
+          git config user.name  "belegung-bot"
+          git config user.email "belegung-bot@users.noreply.github.com"
+          git add data/logbuch.csv
+          git commit -q -m "Logbuch: ${{ github.event.issue.number }}"
+          git pull -q --rebase origin data
+          git push -q origin HEAD:data
+
+      - name: Issue schließen
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MSG: ${{ steps.log.outputs.msg }}
+        run: gh issue close ${{ github.event.issue.number }} -R ${{ github.repository }} --comment "${MSG:-Fehler, siehe Actions.}"

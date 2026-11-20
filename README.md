@@ -48,3 +48,9 @@ crontab -e                                     # Zeile einfügen:
 python3 -m http.server 8080                    # Seite: http://<pi-ip>:8080
 ```
 Nachteil: Die Seite ist nur im Heim-WLAN erreichbar (außer mit z. B. Tailscale), und der Pi muss durchlaufen.
+
+## Logbuch
+
+Auf der Seite unter „Gerade im Studio“: **Leer / Okay / Voll** antippen → GitHub öffnet ein vorausgefülltes Issue → *Submit*.
+Der Workflow „Logbuch eintragen“ schreibt Zeit, Gefühl und die gemessene Personenzahl nach `data/logbuch.csv` (data-Branch) und schließt das Issue.
+Die Seite nutzt die Einträge, um die Ampel zu kalibrieren („bis ~X Personen kein Warten“, „ab ~Y voll“). Nur Issues vom Repo-Besitzer zählen.
