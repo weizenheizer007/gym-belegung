@@ -250,19 +250,22 @@ function filtered() {
   const cut = new Date(); cut.setDate(cut.getDate() - (RANGE === "4w" ? 28 : 14)); cut.setHours(0, 0, 0, 0);
   return ALL.filter(r => r.date >= cut);
 }
+// Öffnungszeiten Mo–So in Minuten [auf, zu]. Der Zähler zählt jeden Check-in 60 Min. (kein Check-out),
+// nach Ladenschluss läuft er also noch eine Stunde nach -> Werte außerhalb der Öffnungszeit ignorieren.
+const HOURS = [[510, 1350], [450, 1350], [510, 1350], [450, 1350], [630, 1230], [630, 1230], [630, 1230]];
+const openSlot = (wd, s) => s * 15 >= HOURS[wd][0] && s * 15 < HOURS[wd][1];
+const openAbs = abs => openSlot(Math.floor(abs / 96) % 7, abs % 96);
+const hm = m => `${pad2(Math.floor(m / 60))}:${pad2(m % 60)}`;
 function averages(rows) {
   const sum = Array.from({ length: 7 }, () => new Float64Array(96)), cnt = Array.from({ length: 7 }, () => new Uint32Array(96));
   for (const r of rows) { sum[r.wd][r.slot] += r.n; cnt[r.wd][r.slot]++; }
-  return sum.map((s, wd) => Array.from(s, (v, i) => cnt[wd][i] ? v / cnt[wd][i] : null));
+  return sum.map((s, wd) => Array.from(s, (v, i) => cnt[wd][i] && openSlot(wd, i) ? v / cnt[wd][i] : null));
 }
-function slotRange(avg) {
-  let lo = 96, hi = -1;
-  avg.forEach(day => day.forEach((v, i) => { if (v) { lo = Math.min(lo, i); hi = Math.max(hi, i); } }));
-  // mindestens 06:00–23:00 zeigen, bei Daten außerhalb entsprechend mehr
-  lo = Math.min(24, hi < 0 ? 24 : Math.floor(lo / 4) * 4 - 4); hi = Math.max(91, hi < 0 ? 91 : Math.ceil((hi + 1) / 4) * 4 + 3);
-  return [Math.max(0, lo), Math.min(95, hi)];
+function slotRange() {
+  const lo = Math.min(...HOURS.map(h => h[0])), hi = Math.max(...HOURS.map(h => h[1]));
+  return [Math.floor(lo / 60) * 4, Math.ceil(hi / 60) * 4 - 1];
 }
-const isOpen = v => v != null && v >= 0.5;
+const isOpen = v => v != null;
 const peakOf = avg => Math.max(1, ...avg.flat().filter(v => v != null));
 // Wert in "absoluten" Slots ab Wochenbeginn (über Tagesgrenzen hinweg)
 const at = (avg, abs) => avg[Math.floor(abs / 96) % 7][abs % 96];
@@ -284,7 +287,7 @@ function drawStatus(avg) {
   const ageMin = last ? Math.max(0, Math.round((new Date() - new Date(last.t)) / 60000)) : Infinity;
   const fresh = ageMin <= 30;
   const typ = avg[wd][s];
-  const open = fresh ? (last.n > 0 || isOpen(typ)) : isOpen(typ);
+  const open = openSlot(wd, s);
   const val = fresh ? last.n : typ;
   const ago = m => m < 1 ? "gerade eben" : m < 60 ? `vor ${m} Min.` : m < 1440 ? `vor ${Math.round(m / 60)} Std.` : `vor ${Math.round(m / 1440)} Tagen`;
   const neutral = txt => { $("lvl").textContent = txt; $("dot").style.background = css("--closed"); $("bar").style.width = "0"; };
@@ -293,7 +296,7 @@ function drawStatus(avg) {
     neutral("Keine Daten"); $("nowNum").innerHTML = "–";
     $("nowMeta").textContent = "Noch keine Messung";
   } else if (fresh) {
-    $("nowNum").innerHTML = `${last.n}<small>Personen</small>`;
+    $("nowNum").innerHTML = `${open ? last.n : 0}<small>Check-ins/Std.</small>`;
     $("nowMeta").textContent = `${last.hhmm} Uhr · ${ago(ageMin)}`;
     if (!open) neutral("Geschlossen");
     else if (!enough) { const c = calStep(val);
@@ -301,18 +304,18 @@ function drawStatus(avg) {
     else { const st = step(val, peak); $("lvl").textContent = LEVEL[st[2]]; $("dot").style.background = css(st[1]);
            $("bar").style.width = Math.min(100, val / peak * 100) + "%"; $("bar").style.background = css(st[1]); }
   } else {
-    $("nowNum").innerHTML = enough && isOpen(typ) ? `${Math.round(typ)}<small>üblich</small>` : `${last.n}<small>Personen</small>`;
+    $("nowNum").innerHTML = enough && isOpen(typ) ? `${Math.round(typ)}<small>üblich</small>` : `–`;
     $("nowMeta").textContent = `Letzte Messung ${ago(ageMin)}`;
     if (enough && isOpen(typ)) { const st = step(typ, peak); $("lvl").textContent = LEVEL[st[2]] + " (üblich)"; $("dot").style.background = css(st[1]);
            $("bar").style.width = Math.min(100, typ / peak * 100) + "%"; $("bar").style.background = css(st[1]); }
-    else neutral(enough ? "Vermutlich zu" : "Veraltet");
+    else neutral(open ? "Veraltet" : "Geschlossen");
   }
   const showBar = enough && open && val != null;
   $("barTxt").textContent = showBar ? `${Math.round(val / peak * 100)} %` : (enough ? "" : `Messtag ${nDays}/${MIN_DAYS}`);
   $("peakTxt").textContent = enough ? `Spitze ${Math.round(peak)}` : "";
 
   const setReco = (ico, t, x) => { $("recoIco").innerHTML = ICON[ico]; $("recoTitle").textContent = t; $("recoText").textContent = x; };
-  if (!enough) {
+  if (!enough && open) {
     setReco("wait", "Noch zu wenig Daten", `Messtag ${nDays} von ${MIN_DAYS}`);
     $("typNow").textContent = "–"; $("typNext").textContent = "–"; $("nextL").textContent = "In 1 Stunde";
     return;
@@ -323,26 +326,27 @@ function drawStatus(avg) {
   const when = k => { const d = new Date(); d.setHours(0, (s + k) * 15, 0, 0);
                       const day = (d.getDay() + 6) % 7;
                       return (day === wd && k < 96 ? "" : day === (wd + 1) % 7 && k < 192 ? "morgen " : DAYS_LONG[day] + " ") + `${pad2(d.getHours())}:${pad2(d.getMinutes())}`; };
-  const hasData = d => avg[d].some(isOpen);
+  const nxOpen = () => { for (let k = 1; k <= 96 * 7; k++) if (openAbs(nowAbs + k)) return k; };
+  const closeMin = HOURS[wd][1], left = closeMin - (new Date().getHours() * 60 + new Date().getMinutes());
 
   if (!open) {
-    const nx = future.find(([, v]) => isOpen(v));
-    // Tage ohne jede Messung (z. B. erstes Wochenende) -> Öffnungszeit unbekannt statt falscher Prognose
-    const gap = nx && Array.from({ length: Math.floor((s + nx[0]) / 96) + 1 }, (_, i) => (wd + i) % 7).find(d => !hasData(d));
-    if (gap != null && gap !== undefined) setReco("moon", "Geschlossen", `Für ${DAYS_LONG[gap]} noch keine Daten.`);
-    else if (nx) {
-      const first = future.slice(nx[0] - 1, nx[0] + 3).filter(([, v]) => isOpen(v)), q = first.reduce((x, f) => x + f[1], 0) / first.length;
-      setReco("moon", `Öffnet ${when(nx[0])}`, `Erste Stunde Ø ${Math.round(q)} · ${LEVEL[step(q, peak)[2]].toLowerCase()}`);
-    } else setReco("moon", "Geschlossen", "Öffnungszeit noch unbekannt.");
+    const k = nxOpen(), first = future.slice(k - 1, k + 3).map(f => f[1]).filter(v => v != null);
+    const q = first.length ? first.reduce((x, y) => x + y, 0) / first.length : null;
+    setReco("moon", `Öffnet ${when(k)}`, q != null ? `Erste Stunde Ø ${Math.round(q)} · ${LEVEL[step(q, peak)[2]].toLowerCase()}`
+      : `Bis ${hm(HOURS[(wd + Math.floor((s + k) / 96)) % 7][1])} Uhr`);
+  } else if (left <= 60) {
+    setReco("moon", `Schließt in ${left} Min.`, `Heute bis ${hm(closeMin)} Uhr.`);
+  } else if (!avg[wd].some(v => v != null)) {
+    setReco("ok", `Offen bis ${hm(closeMin)}`, `Für ${DAYS_LONG[wd]} noch keine Daten.`);
   } else {
     // nächste 4 Std., nur solange geöffnet
     const today = [];
-    for (const f of future) { if (f[0] > 16 || !isOpen(f[1])) break; today.push(f); }
+    for (const f of future) { if (f[0] > 16 || !openAbs(nowAbs + f[0])) break; if (f[1] != null) today.push(f); }
     let lvlNow = val / peak;
     if (CAL.b1 != null && val <= CAL.b1) lvlNow = Math.min(lvlNow, 0.39);       // laut Logbuch kein Warten
     else if (CAL.sure1 && val > CAL.b1) lvlNow = Math.max(lvlNow, 0.4);
     if (CAL.b2 != null && val >= CAL.b2) lvlNow = Math.max(lvlNow, 0.7);        // laut Logbuch voll
-    const closes = today.length < 16 ? ` Schließt ~${when(today.length + 1)}.` : "";
+    const closes = left <= 240 ? ` Schließt ${hm(closeMin)}.` : "";
     const rush = today.find(([k, v]) => k <= 4 && v / peak >= 0.7 && v > val * 1.25); // in <1 Std. deutlich voller
     if (lvlNow < 0.4) {
       const busy = today.find(([, v]) => v / peak >= 0.55);
@@ -366,10 +370,10 @@ function drawStatus(avg) {
       }
     }
   }
-  $("typNow").textContent = isOpen(typ) ? `Ø ${Math.round(typ)}` : "zu";
+  $("typNow").textContent = !open ? "zu" : isOpen(typ) ? `Ø ${Math.round(typ)}` : "–";
   const t1 = at(avg, nowAbs + 4);
   $("nextL").textContent = `${when(4)} Uhr`;
-  $("typNext").textContent = isOpen(t1) ? `Ø ${Math.round(t1)}` : "zu";
+  $("typNext").textContent = !openAbs(nowAbs + 4) ? "zu" : isOpen(t1) ? `Ø ${Math.round(t1)}` : "–";
 }
 
 // ---------- Heatmap ----------
@@ -426,11 +430,13 @@ function drawHeat(avg, [lo, hi]) {
       const v = hourly[wd][i], open = isOpen(v), x = L + i * (cw + gap);
       const fill = !open ? css("--closed") : enough ? css(step(v, peak)[1]) : css("--series-2");
       const r = el("rect", { x, y, width: cw, height: chh, rx: Math.min(6, cw / 3), fill, style: "cursor:pointer" }, svg);
+      const hrOpen = [0, 1, 2, 3].some(q => openSlot(wd, (h0 + i) * 4 + q));
+      if (!hrOpen) r.setAttribute("fill-opacity", 0.3);
       if (open && !enough) r.setAttribute("fill-opacity", (0.25 + 0.75 * v / maxV).toFixed(2));
       if (wd === ns.wd && i === nowH) { r.setAttribute("stroke", css("--text-primary")); r.setAttribute("stroke-width", 2); }
       const hh = h0 + i;
       r.addEventListener("mousemove", ev => showTip(ev, `<b>${DAYS[wd]} ${pad2(hh)}–${pad2(hh + 1)} Uhr</b><br>` +
-        (v == null ? "keine Daten" : open ? `Ø <b>${Math.round(v)}</b>` + (enough ? ` · ${LEVEL[step(v, peak)[2]]}` : "") : "geschlossen")));
+        (!hrOpen ? "geschlossen" : v == null ? "keine Daten" : open ? `Ø <b>${Math.round(v)}</b>` + (enough ? ` · ${LEVEL[step(v, peak)[2]]}` : "") : "geschlossen")));
       r.addEventListener("mouseleave", hideTip);
       r.addEventListener("click", () => { DAY = wd; render(); $("days").scrollIntoView({ behavior: "smooth", block: "center" }); });
     }
@@ -449,7 +455,7 @@ function drawLine(avg, [lo, hi]) {
   const tkey = `${target.getFullYear()}-${pad2(target.getMonth() + 1)}-${pad2(target.getDate())}`;
   $("thisLbl").textContent = `${target.getDate()}.${target.getMonth() + 1}.`;
   // diese Woche: jede einzelne Messung mit exakter Uhrzeit (Minuten)
-  const cur = ALL.filter(r => r.key === tkey).map(r => [r.min, r.n]).sort((p, q) => p[0] - q[0]);
+  const cur = ALL.filter(r => r.key === tkey && openSlot(r.wd, Math.floor(r.min / 15))).map(r => [r.min, r.n]).sort((p, q) => p[0] - q[0]);
   const a = avg[DAY], sm = smooth(a);
   const W = Math.max(320, svg.parentElement.clientWidth || 1000), H = W < 600 ? 220 : 270, L = 30, R = 8, T = 14, B = 26;
   svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.style.width = "100%"; svg.style.height = "auto";
@@ -530,7 +536,7 @@ function controls() {
 
 function render() {
   controls();
-  const avg = averages(filtered()), rng = slotRange(averages(ALL));
+  const avg = averages(filtered()), rng = slotRange();
   drawLog(); drawStatus(avg); drawHeat(avg, rng); drawLine(avg, rng);
 }
 
