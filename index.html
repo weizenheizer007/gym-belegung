@@ -2,204 +2,170 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#f3f0ea">
-<title>Gym-Belegung Uni Mannheim</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f4f4f5" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e0f11" media="(prefers-color-scheme: dark)">
+<meta name="color-scheme" content="light dark">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Gym</title>
 <style>
-.viz-root {
+:root {
   color-scheme: light;
-  --bg: #f3f0ea;
-  --card: #f7f5f0;
-  --inset: #eeeae2;
-  --hi: rgba(255,255,255,.95);
-  --lo: rgba(163,152,130,.28);
-  --text-primary: #23262b;
-  --text-secondary: #5b5f66;
-  --text-muted: #8c8f94;
-  --grid: #e3ded4;
-  --accent: #0b5cd8;
-  --accent-soft: #dfe8f8;
-  --series-1: #2a78d6;
-  --series-2: #eb6834;
-  --closed: #e6e1d7;
-  --amp-1: #1f9d55; --amp-2: #7bc35b; --amp-3: #f2c230; --amp-4: #f08a2c; --amp-5: #d9433a;
+  --bg: #f4f4f5;
+  --card: #ffffff;
+  --surface: #ececef;
+  --line: rgba(0,0,0,.07);
+  --text-primary: #111214;
+  --text-secondary: #55585f;
+  --text-muted: #8b8e95;
+  --grid: rgba(0,0,0,.06);
+  --accent: #2563eb;
+  --accent-soft: rgba(37,99,235,.12);
+  --series-1: #9aa3b2;
+  --series-2: #2563eb;
+  --closed: #e6e6ea;
+  --amp-1: #16a34a; --amp-2: #84cc16; --amp-3: #eab308; --amp-4: #f97316; --amp-5: #ef4444;
 }
 @media (prefers-color-scheme: dark) {
-  .viz-root {
+  :root {
     color-scheme: dark;
-    --bg: #1c1d1f;
-    --card: #222326;
-    --inset: #1a1b1d;
-    --hi: rgba(255,255,255,.04);
-    --lo: rgba(0,0,0,.45);
-    --text-primary: #f0efec;
-    --text-secondary: #c3c2b7;
-    --text-muted: #8e8d86;
-    --grid: #34353a;
-    --accent: #5b95ee;
-    --accent-soft: #23324a;
-    --series-1: #3987e5;
-    --series-2: #d95926;
-    --closed: #2c2d31;
-    --amp-1: #1f9d55; --amp-2: #6db04f; --amp-3: #e0b12a; --amp-4: #e27f27; --amp-5: #e0514a;
+    --bg: #0e0f11;
+    --card: #17181b;
+    --surface: #212226;
+    --line: rgba(255,255,255,.06);
+    --text-primary: #f2f2f3;
+    --text-secondary: #a6a8ae;
+    --text-muted: #6f727a;
+    --grid: rgba(255,255,255,.06);
+    --accent: #5b8cff;
+    --accent-soft: rgba(91,140,255,.16);
+    --series-1: #5c6170;
+    --series-2: #5b8cff;
+    --closed: #1f2024;
+    --amp-1: #22c55e; --amp-2: #a3e635; --amp-3: #facc15; --amp-4: #fb923c; --amp-5: #f87171;
   }
 }
-* { box-sizing: border-box; }
-body { margin: 0; font: 15px/1.45 "Inter", system-ui, -apple-system, "Segoe UI", sans-serif; }
-.viz-root { background: var(--bg); color: var(--text-primary); min-height: 100vh; padding: 36px 18px 56px; }
-main { max-width: 1040px; margin: 0 auto; display: grid; gap: 22px; grid-template-columns: minmax(0, 1fr); }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; background: var(--bg); color: var(--text-primary); min-height: 100%; }
+body { font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui, sans-serif;
+       -webkit-font-smoothing: antialiased; overscroll-behavior-y: none;
+       padding: max(20px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(28px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left)); }
+main { max-width: 980px; margin: 0 auto; display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr); }
 main > *, .status > * { min-width: 0; }
-@media (max-width: 600px) { .card { padding: 18px 16px; border-radius: 18px; } .big { font-size: 54px; } .viz-root { padding: 24px 12px 40px; } }
 
-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 8px; }
-h1 { font-size: clamp(28px, 5vw, 44px); font-weight: 500; letter-spacing: .12em; margin: 0; line-height: 1.05; }
-h1 .slash { color: var(--accent); font-weight: 400; }
-.kicker { font-size: 12px; letter-spacing: .32em; text-transform: uppercase; color: var(--text-secondary); margin-top: 10px; }
-.tagline { text-align: right; font-size: 10px; letter-spacing: .3em; text-transform: uppercase; color: var(--text-muted); line-height: 1.9; }
-
-.card { background: var(--card); border-radius: 22px; padding: 22px 24px;
-        box-shadow: 9px 9px 22px var(--lo), -9px -9px 22px var(--hi); }
-.inner { background: var(--card); border-radius: 16px; padding: 16px 18px;
-         box-shadow: 5px 5px 14px var(--lo), -5px -5px 14px var(--hi); }
-.well { background: var(--inset); border-radius: 999px; box-shadow: inset 3px 3px 7px var(--lo), inset -3px -3px 7px var(--hi); }
-h2 { font-size: 13px; font-weight: 500; letter-spacing: .2em; text-transform: uppercase; margin: 0 0 4px; }
-.sub { color: var(--text-secondary); margin: 0; font-size: 14px; }
-.banner { display: flex; gap: 14px; align-items: center; }
-.banner .ico { flex: none; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 22px; padding: 20px; }
+h2 { font-size: 13px; font-weight: 600; color: var(--text-muted); margin: 0; letter-spacing: .01em; }
+.row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 
 /* Status */
-.status { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
-@media (max-width: 600px) {
-  .status { gap: 12px; }
-  .status .card { padding: 16px 14px; }
-  .status h2 { font-size: 11px; letter-spacing: .14em; }
-  .status .big { font-size: 42px; margin-top: 12px; }
-  .status .big small { display: block; font-size: 13px; margin: 4px 0 0; }
-  .status .pill { padding: 6px 12px 6px 8px; font-size: 13px; }
-  .status .dot { width: 16px; height: 16px; }
-  .status .reco { flex-direction: column; gap: 10px; padding: 12px; }
-  .status .reco .ico { width: 36px; height: 36px; }
-  .status .reco b { font-size: 15px; }
-  .status .reco .sub { font-size: 13px; }
-  .status .facts { grid-template-columns: 1fr; gap: 8px; margin-top: 12px; }
-  .status .fact .v { font-size: 17px; }
-  .status .meter-row { flex-direction: column; gap: 2px; font-size: 12px; }
-}
-.pill { display: inline-flex; align-items: center; gap: 10px; padding: 8px 16px 8px 10px; border-radius: 999px; font-weight: 600; font-size: 15px; }
-.dot { width: 22px; height: 22px; border-radius: 50%; box-shadow: inset -2px -3px 5px rgba(0,0,0,.18), inset 2px 2px 4px rgba(255,255,255,.35); }
-.big { font-size: 64px; font-weight: 600; letter-spacing: -.03em; line-height: 1; margin: 18px 0 2px; font-variant-numeric: tabular-nums; }
-.big small { font-size: 17px; font-weight: 500; color: var(--text-secondary); letter-spacing: 0; margin-left: 6px; }
-.meta { color: var(--text-muted); font-size: 13px; }
-.meter { height: 14px; margin: 18px 0 8px; position: relative; overflow: hidden; }
-.meter i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px; transition: width .4s; }
-.meter-row { display: flex; justify-content: space-between; font-size: 13px; color: var(--text-secondary); }
-.reco { display: flex; gap: 14px; align-items: flex-start; }
-.reco .ico { flex: none; width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); }
-.reco b { font-size: 17px; font-weight: 600; display: block; margin-bottom: 2px; }
-.facts { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 16px; }
-.fact .l { font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--text-muted); }
-.fact .v { font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.status { display: grid; grid-template-columns: 1.15fr 1fr; gap: 12px; }
+@media (max-width: 680px) { .status { grid-template-columns: 1fr; } }
+.pill { display: inline-flex; align-items: center; gap: 7px; padding: 5px 11px 5px 9px; border-radius: 999px;
+        background: var(--surface); font-weight: 600; font-size: 13px; white-space: nowrap; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--closed); flex: none; }
+.big { font-size: 76px; font-weight: 700; letter-spacing: -.045em; line-height: .95; margin: 18px 0 6px; font-variant-numeric: tabular-nums; }
+.big small { font-size: 17px; font-weight: 500; color: var(--text-secondary); letter-spacing: 0; margin-left: 8px; }
+.meta { color: var(--text-muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+.meter { height: 6px; border-radius: 999px; background: var(--surface); margin: 18px 0 0; overflow: hidden; }
+.meter i { display: block; height: 100%; width: 0; border-radius: 999px; transition: width .5s cubic-bezier(.2,.8,.2,1), background .3s; }
+.meter-row { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted); margin-top: 7px; font-variant-numeric: tabular-nums; min-height: 1em; }
+.log { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 18px; }
+.log a { display: flex; align-items: center; justify-content: center; gap: 7px; height: 40px; border-radius: 12px; background: var(--surface);
+         color: var(--text-primary); text-decoration: none; font-size: 14px; font-weight: 500; transition: transform .1s, background .2s; }
+.log a:active { transform: scale(.96); }
+.log a i { width: 8px; height: 8px; border-radius: 50%; }
+#logTxt { margin-top: 8px; font-size: 12px; }
+
+.reco { display: flex; gap: 14px; align-items: flex-start; margin-top: 16px; }
+.reco .ico { flex: none; width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); }
+.reco .ico svg { width: 20px; height: 20px; }
+.reco b { font-size: 19px; font-weight: 650; display: block; letter-spacing: -.01em; line-height: 1.25; }
+.reco .sub { color: var(--text-secondary); font-size: 14px; display: block; margin-top: 4px; }
+.facts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 18px; }
+.fact { background: var(--surface); border-radius: 14px; padding: 11px 13px; }
+.fact .l { font-size: 12px; color: var(--text-muted); }
+.fact .v { font-size: 20px; font-weight: 650; font-variant-numeric: tabular-nums; margin-top: 2px; }
 
 /* Controls */
-.head { display: flex; justify-content: space-between; gap: 14px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 14px; }
-.seg { display: inline-flex; gap: 4px; padding: 4px; }
-.seg button { background: none; border: 0; padding: 7px 14px; border-radius: 999px; font: inherit; font-size: 13px; color: var(--text-secondary); cursor: pointer; }
-.seg button[aria-pressed="true"] { background: var(--accent); color: #fff; box-shadow: 3px 3px 8px rgba(11,92,216,.3); }
-.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--grid); overflow-x: auto; }
-.tabs button { background: none; border: 0; padding: 8px 12px 9px; font: inherit; font-size: 14px; color: var(--text-secondary); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
-.tabs button[aria-pressed="true"] { color: var(--accent); border-bottom-color: var(--accent); font-weight: 500; }
+.head { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+.seg { display: inline-flex; gap: 2px; padding: 3px; background: var(--surface); border-radius: 11px; }
+.seg button { background: none; border: 0; padding: 6px 11px; border-radius: 8px; font: inherit; font-size: 13px; font-weight: 500; color: var(--text-secondary); cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--card); color: var(--text-primary); box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+.tabs { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; padding: 3px; background: var(--surface); border-radius: 11px; }
+.tabs button { background: none; border: 0; padding: 7px 0; border-radius: 8px; font: inherit; font-size: 13px; font-weight: 500; color: var(--text-secondary); cursor: pointer; }
+.tabs button[aria-pressed="true"] { background: var(--card); color: var(--text-primary); box-shadow: 0 1px 3px rgba(0,0,0,.15); }
 
-.scroll { overflow-x: auto; }
-svg text { fill: var(--text-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
-.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; color: var(--text-secondary); margin: 2px 0 12px; align-items: center; }
-.legend .chip { display: inline-flex; align-items: center; gap: 6px; }
-.legend .grad { display: inline-block; width: 110px; height: 10px; border-radius: 999px; background: linear-gradient(90deg, var(--amp-1), var(--amp-2) 30%, var(--amp-3) 47%, var(--amp-4) 62%, var(--amp-5) 85%); }
-.legend .sq { width: 12px; height: 12px; border-radius: 4px; display: inline-block; }
-.sw { display: inline-block; width: 14px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
-#tip { position: fixed; pointer-events: none; background: var(--card); color: var(--text-primary); border-radius: 12px; padding: 8px 11px;
-       font-size: 13px; box-shadow: 6px 6px 18px var(--lo), -2px -2px 8px var(--hi); display: none; z-index: 9; white-space: nowrap; }
+.scroll { overflow: hidden; }
+svg { display: block; }
+svg text { fill: var(--text-muted); font-size: 11px; font-variant-numeric: tabular-nums; font-family: inherit; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--text-muted); margin: 12px 0 0; align-items: center; }
+.legend .scale { display: inline-flex; gap: 3px; }
+.legend .sq { width: 14px; height: 10px; border-radius: 3px; display: inline-block; }
+.sw { display: inline-block; width: 12px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+#tip { position: fixed; pointer-events: none; background: var(--card); color: var(--text-primary); border: 1px solid var(--line); border-radius: 12px; padding: 8px 11px;
+       font-size: 13px; box-shadow: 0 8px 24px rgba(0,0,0,.25); display: none; z-index: 9; white-space: nowrap; }
 #tip b { font-variant-numeric: tabular-nums; }
-.quiet { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
-.quiet div { padding: 8px 14px; border-radius: 999px; font-size: 14px; }
-.quiet b { font-variant-numeric: tabular-nums; }
-.log { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--grid); }
-.log .l { font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--text-muted); }
-.log .seg { margin: 8px 0 6px; }
-.log .seg a { white-space: nowrap; padding: 7px 14px; border-radius: 999px; font-size: 13px; color: var(--text-secondary); text-decoration: none; }
-.log .seg a:hover { background: var(--accent-soft); color: var(--text-primary); }
-.log .meta { font-size: 13px; }
-footer { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-top: 14px;
-         font-size: 10px; letter-spacing: .28em; text-transform: uppercase; color: var(--text-muted); line-height: 1.9; }
-footer a { color: inherit; }
-footer .fr { text-align: right; }
-@media (max-width: 600px) { footer .fr { text-align: left; } }
+.quiet { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 14px; }
+.quiet div { padding: 7px 12px; border-radius: 10px; font-size: 13px; background: var(--surface); display: inline-flex; align-items: center; gap: 7px; font-variant-numeric: tabular-nums; }
+.quiet i { width: 8px; height: 8px; border-radius: 50%; }
+footer { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; color: var(--text-muted); padding: 6px 4px 0; }
+footer a { color: inherit; text-decoration: none; }
 </style>
 </head>
 <body>
-<div class="viz-root">
 <main>
   <section class="status">
     <div class="card">
-      <h2>Gerade im Studio</h2>
-      <div style="margin-top:14px"><span class="pill inner" id="pill"><span class="dot" id="dot"></span><span id="lvl">–</span></span></div>
+      <div class="row"><h2>Jetzt</h2><span class="pill"><span class="dot" id="dot"></span><span id="lvl">–</span></span></div>
       <div class="big" id="nowNum">–</div>
       <div class="meta" id="nowMeta"></div>
-      <div class="meter well"><i id="bar"></i></div>
+      <div class="meter"><i id="bar"></i></div>
       <div class="meter-row"><span id="barTxt"></span><span id="peakTxt"></span></div>
-      <div class="log">
-        <div class="l">Logbuch · wie voll fühlt es sich an?</div>
-        <div class="seg well" id="logBtns"></div>
-        <div class="meta" id="logTxt"></div>
-      </div>
+      <div class="log" id="logBtns"></div>
+      <div class="meta" id="logTxt"></div>
     </div>
     <div class="card">
-      <h2>Lohnt sich warten?</h2>
-      <div class="inner reco" style="margin-top:14px">
+      <h2>Prognose</h2>
+      <div class="reco">
         <div class="ico" id="recoIco"></div>
         <div><b id="recoTitle">–</b><span class="sub" id="recoText"></span></div>
       </div>
       <div class="facts">
         <div class="fact"><div class="l">Üblich jetzt</div><div class="v" id="typNow">–</div></div>
-        <div class="fact"><div class="l" id="nextL">In 1 Stunde</div><div class="v" id="typNext">–</div></div>
+        <div class="fact"><div class="l" id="nextL">In 1 Std.</div><div class="v" id="typNext">–</div></div>
       </div>
     </div>
   </section>
 
   <section class="card">
-    <div class="head">
-      <div><h2>Wochenübersicht</h2><p class="sub">Durchschnitt je Wochentag und Uhrzeit · antippen öffnet den Tag</p></div>
-      <div class="seg well" id="range"></div>
-    </div>
+    <div class="head"><h2>Woche</h2><div class="seg" id="range"></div></div>
+    <div class="scroll"><svg id="heat" role="img" aria-label="Wochenübersicht"></svg></div>
     <div class="legend" id="legend"></div>
-    <div class="scroll"><svg id="heat" role="img" aria-label="Heatmap der Belegung"></svg></div>
   </section>
 
   <section class="card">
-    <div class="head" style="margin-bottom:6px">
-      <div><h2>Tagesverlauf</h2><p class="sub">Durchschnitt vs. der Tag in der aktuellen Woche</p></div>
+    <div class="head"><h2>Tag</h2>
+      <div class="legend" style="margin:0">
+        <span><i class="sw" style="background:var(--series-1)"></i>Ø</span>
+        <span><i class="sw" style="background:var(--series-2)"></i><span id="thisLbl">diese Woche</span></span>
+      </div>
     </div>
     <div class="tabs" id="days"></div>
-    <div class="legend" style="margin-top:12px">
-      <span><i class="sw" style="background:var(--series-1)"></i>Durchschnitt</span>
-      <span><i class="sw" style="background:var(--series-2)"></i><span id="thisLbl">diese Woche</span></span>
-    </div>
-    <div class="scroll"><svg id="line" role="img" aria-label="Tagesverlauf"></svg></div>
-    <p class="sub" style="margin-top:14px">Ruhigste Stunden an diesem Tag</p>
+    <div class="scroll" style="margin-top:14px"><svg id="line" role="img" aria-label="Tagesverlauf"></svg></div>
     <div class="quiet" id="quiet"></div>
   </section>
 
   <footer>
-    <div>Quelle: <a href="https://www.hochschulsport.uni-mannheim.de/angebote/aktueller_zeitraum_0/_T1_FitnessGym_Studiobelegung.html">Hochschulsport Mannheim</a><br><a id="rawLink" href="#">Rohdaten (CSV)</a></div>
-    <div class="fr">Ruhiger trainieren<br><span id="upd"></span></div>
+    <a href="https://www.hochschulsport.uni-mannheim.de/angebote/aktueller_zeitraum_0/_T1_FitnessGym_Studiobelegung.html">Hochschulsport Mannheim</a>
+    <span><a id="rawLink" href="#">CSV</a> · <span id="upd"></span></span>
   </footer>
 </main>
-</div>
 <div id="tip"></div>
-
 <script>
 const DAYS = ["Mo","Di","Mi","Do","Fr","Sa","So"];
 const DAYS_LONG = ["Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag","Sonntag"];
-const css = n => getComputedStyle(document.querySelector(".viz-root")).getPropertyValue(n).trim();
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const tip = document.getElementById("tip");
 const $ = id => document.getElementById(id);
 const pad2 = n => String(n).padStart(2, "0");
@@ -256,13 +222,12 @@ function parseLog(text) {
 function drawLog() {
   const pad = x => String(x).padStart(2, "0"), d = new Date();
   const zeit = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  $("logBtns").innerHTML = [["leer", "Leer"], ["ok", "Okay"], ["voll", "Voll"]].map(([g, l]) =>
-    `<a target="_blank" rel="noopener" href="https://github.com/${OWNER}/${REPO}/issues/new?title=${encodeURIComponent("Logbuch: " + g)}&body=${encodeURIComponent("Zeit: " + zeit + "\n\n")}">${l}</a>`).join("");
+  $("logBtns").innerHTML = [["leer", "Leer", "--amp-1"], ["ok", "Okay", "--amp-3"], ["voll", "Voll", "--amp-5"]].map(([g, l, c]) =>
+    `<a target="_blank" rel="noopener" aria-label="Logbuch: ${l}" href="https://github.com/${OWNER}/${REPO}/issues/new?title=${encodeURIComponent("Logbuch: " + g)}&body=${encodeURIComponent("Zeit: " + zeit + "\n\n")}"><i style="background:var(${c})"></i>${l}</a>`).join("");
   const parts = [];
-  if (CAL.b1 != null) parts.push(`bis ~${Math.round(CAL.b1)} Personen kein Warten`);
-  if (CAL.b2 != null) parts.push(`ab ~${Math.round(CAL.b2)} voll`);
-  $("logTxt").textContent = CAL.n ? `${CAL.n} ${CAL.n === 1 ? "Eintrag" : "Einträge"}${parts.length ? " · " + parts.join(" · ") : ""}`
-                                  : "Noch keine Einträge. Antippen öffnet einen vorausgefüllten Eintrag auf GitHub.";
+  if (CAL.b1 != null) parts.push(`≤ ${Math.round(CAL.b1)} frei`);
+  if (CAL.b2 != null) parts.push(`≥ ${Math.round(CAL.b2)} voll`);
+  $("logTxt").textContent = parts.length ? `Logbuch: ${parts.join(" · ")} · ${CAL.n}×` : "";
 }
 const LEVEL = { "sehr ruhig": "Ruhig", "ruhig": "Ruhig", "mittel": "Mittel", "gut besucht": "Gut besucht", "voll": "Voll" };
 
@@ -326,29 +291,29 @@ function drawStatus(avg) {
 
   if (!last) {
     neutral("Keine Daten"); $("nowNum").innerHTML = "–";
-    $("nowMeta").textContent = "Die erste Messung kommt in wenigen Minuten.";
+    $("nowMeta").textContent = "Noch keine Messung";
   } else if (fresh) {
     $("nowNum").innerHTML = `${last.n}<small>Personen</small>`;
-    $("nowMeta").textContent = `Gemessen ${last.hhmm} Uhr · ${ago(ageMin)}`;
-    if (!open) neutral(last.n === 0 ? "Leer / zu" : "Geschlossen");
+    $("nowMeta").textContent = `${last.hhmm} Uhr · ${ago(ageMin)}`;
+    if (!open) neutral("Geschlossen");
     else if (!enough) { const c = calStep(val);
-      if (c) { $("lvl").textContent = LEVEL[c[2]] + " (Logbuch)"; $("dot").style.background = css(c[1]); } else neutral("Ampel folgt"); }
+      if (c) { $("lvl").textContent = LEVEL[c[2]]; $("dot").style.background = css(c[1]); } else neutral("Offen"); }
     else { const st = step(val, peak); $("lvl").textContent = LEVEL[st[2]]; $("dot").style.background = css(st[1]);
            $("bar").style.width = Math.min(100, val / peak * 100) + "%"; $("bar").style.background = css(st[1]); }
   } else {
-    $("nowNum").innerHTML = enough && isOpen(typ) ? `${Math.round(typ)}<small>Personen üblich</small>` : `${last.n}<small>Personen</small>`;
-    $("nowMeta").textContent = `Keine aktuelle Messung · letzte ${ago(ageMin)} (${last.hhmm} Uhr)`;
+    $("nowNum").innerHTML = enough && isOpen(typ) ? `${Math.round(typ)}<small>üblich</small>` : `${last.n}<small>Personen</small>`;
+    $("nowMeta").textContent = `Letzte Messung ${ago(ageMin)}`;
     if (enough && isOpen(typ)) { const st = step(typ, peak); $("lvl").textContent = LEVEL[st[2]] + " (üblich)"; $("dot").style.background = css(st[1]);
            $("bar").style.width = Math.min(100, typ / peak * 100) + "%"; $("bar").style.background = css(st[1]); }
     else neutral(enough ? "Vermutlich zu" : "Veraltet");
   }
   const showBar = enough && open && val != null;
-  $("barTxt").textContent = showBar ? `${Math.round(val / peak * 100)} % der üblichen Spitze` : (enough ? "" : `${nDays} von ${MIN_DAYS} Messtagen gesammelt`);
-  $("peakTxt").textContent = enough ? `Spitze ≈ ${Math.round(peak)}` : "";
+  $("barTxt").textContent = showBar ? `${Math.round(val / peak * 100)} %` : (enough ? "" : `Messtag ${nDays}/${MIN_DAYS}`);
+  $("peakTxt").textContent = enough ? `Spitze ${Math.round(peak)}` : "";
 
   const setReco = (ico, t, x) => { $("recoIco").innerHTML = ICON[ico]; $("recoTitle").textContent = t; $("recoText").textContent = x; };
   if (!enough) {
-    setReco("wait", "Sammle noch Daten", `Empfehlungen gibt es ab ${MIN_DAYS} Tagen Messungen. Bisher: ${nDays}.`);
+    setReco("wait", "Noch zu wenig Daten", `Messtag ${nDays} von ${MIN_DAYS}`);
     $("typNow").textContent = "–"; $("typNext").textContent = "–"; $("nextL").textContent = "In 1 Stunde";
     return;
   }
@@ -356,14 +321,19 @@ function drawStatus(avg) {
   const future = [];
   for (let k = 1; k <= 96 * 7; k++) future.push([k, at(avg, nowAbs + k)]);
   const when = k => { const d = new Date(); d.setHours(0, (s + k) * 15, 0, 0);
-                      const day = (d.getDay() + 6) % 7; return (day === wd && k < 96 ? "" : DAYS_LONG[day] + " ") + `${pad2(d.getHours())}:${pad2(d.getMinutes())}`; };
+                      const day = (d.getDay() + 6) % 7;
+                      return (day === wd && k < 96 ? "" : day === (wd + 1) % 7 && k < 192 ? "morgen " : DAYS_LONG[day] + " ") + `${pad2(d.getHours())}:${pad2(d.getMinutes())}`; };
+  const hasData = d => avg[d].some(isOpen);
 
   if (!open) {
     const nx = future.find(([, v]) => isOpen(v));
-    if (nx) {
-      const q = future.slice(nx[0] - 1, nx[0] + 7).filter(([, v]) => isOpen(v)).sort((a, b) => a[1] - b[1])[0];
-      setReco("moon", "Gerade geschlossen", `Öffnet vermutlich ${when(nx[0])} Uhr. Kurz danach ist es meist ruhig (Ø ${Math.round(q[1])}).`);
-    } else setReco("moon", "Gerade geschlossen", "Noch keine Daten zu den Öffnungszeiten.");
+    // Tage ohne jede Messung (z. B. erstes Wochenende) -> Öffnungszeit unbekannt statt falscher Prognose
+    const gap = nx && Array.from({ length: Math.floor((s + nx[0]) / 96) + 1 }, (_, i) => (wd + i) % 7).find(d => !hasData(d));
+    if (gap != null && gap !== undefined) setReco("moon", "Geschlossen", `Für ${DAYS_LONG[gap]} noch keine Daten.`);
+    else if (nx) {
+      const first = future.slice(nx[0] - 1, nx[0] + 3).filter(([, v]) => isOpen(v)), q = first.reduce((x, f) => x + f[1], 0) / first.length;
+      setReco("moon", `Öffnet ${when(nx[0])}`, `Erste Stunde Ø ${Math.round(q)} · ${LEVEL[step(q, peak)[2]].toLowerCase()}`);
+    } else setReco("moon", "Geschlossen", "Öffnungszeit noch unbekannt.");
   } else {
     // nächste 4 Std., nur solange geöffnet
     const today = [];
@@ -372,50 +342,37 @@ function drawStatus(avg) {
     if (CAL.b1 != null && val <= CAL.b1) lvlNow = Math.min(lvlNow, 0.39);       // laut Logbuch kein Warten
     else if (CAL.sure1 && val > CAL.b1) lvlNow = Math.max(lvlNow, 0.4);
     if (CAL.b2 != null && val >= CAL.b2) lvlNow = Math.max(lvlNow, 0.7);        // laut Logbuch voll
-    const closes = today.length < 16 ? ` Schließt vermutlich gegen ${when(today.length + 1)} Uhr.` : "";
+    const closes = today.length < 16 ? ` Schließt ~${when(today.length + 1)}.` : "";
     const rush = today.find(([k, v]) => k <= 4 && v / peak >= 0.7 && v > val * 1.25); // in <1 Std. deutlich voller
     if (lvlNow < 0.4) {
       const busy = today.find(([, v]) => v / peak >= 0.55);
-      setReco("ok", "Jetzt ist eine gute Zeit",
-        (busy ? `Ab etwa ${when(busy[0])} Uhr wird es üblicherweise voller.` + closes
-              : closes ? `Bis zum Schluss bleibt es meist ruhig.${closes}` : "In den nächsten Stunden bleibt es üblicherweise ruhig."));
+      setReco("ok", "Jetzt gehen",
+        (busy ? `Ab ~${when(busy[0])} voller.` + closes : `Bleibt ruhig.${closes}`));
     } else if (rush && lvlNow < 0.7) {
       const after = today.find(([k, v]) => k > rush[0] && v <= val);
-      setReco("ok", "Besser jetzt gehen",
-        `Ab etwa ${when(rush[0])} Uhr wird es voll` + (after ? ` und erst gegen ${when(after[0])} Uhr wieder so leer wie jetzt.` : ".") + closes);
+      setReco("ok", "Besser jetzt",
+        `Ab ~${when(rush[0])} voll` + (after ? `, erst ab ~${when(after[0])} wieder so leer.` : ".") + closes);
     } else {
       // spürbar ruhiger = Ampel "ruhig" oder mindestens 25 % weniger als jetzt
       const calm = today.find(([, v]) => v / peak < 0.4) || today.find(([, v]) => v <= val * 0.75);
       if (calm) {
         const mins = calm[0] * 15;
-        setReco("wait", mins <= 30 ? "Kurz warten lohnt sich" : `Lieber ca. ${fmtWait(mins)} warten`,
-          `Ab etwa ${when(calm[0])} Uhr meist ruhiger (Ø ${Math.round(calm[1])} statt ${Math.round(val)}).`);
+        setReco("wait", mins <= 30 ? "Kurz warten" : `${fmtWait(mins)} warten`,
+          `Ab ~${when(calm[0])} ruhiger: Ø ${Math.round(calm[1])} statt ${Math.round(val)}.`);
       } else {
         const better = today.slice().sort((a, b) => a[1] - b[1])[0];
         setReco("wait", lvlNow >= 0.7 ? "Bleibt voll" : "Wird nicht deutlich ruhiger",
-          better && better[1] < val * 0.85 ? `Am ehesten gegen ${when(better[0])} Uhr (Ø ${Math.round(better[1])}).` : "In den nächsten Stunden wird es nicht ruhiger. Jetzt gehen oder auf einen anderen Tag ausweichen.");
+          better && better[1] < val * 0.85 ? `Am ehesten ~${when(better[0])} (Ø ${Math.round(better[1])}).` : "Heute nicht mehr ruhiger.");
       }
     }
   }
   $("typNow").textContent = isOpen(typ) ? `Ø ${Math.round(typ)}` : "zu";
   const t1 = at(avg, nowAbs + 4);
-  $("nextL").textContent = `Um ${when(4)}`;
+  $("nextL").textContent = `${when(4)} Uhr`;
   $("typNext").textContent = isOpen(t1) ? `Ø ${Math.round(t1)}` : "zu";
 }
 
 // ---------- Heatmap ----------
-// Ampelfarbe stufenlos: 0 = leer … 1 = übliche Spitze
-const AMP_STOPS = [[0, "--amp-1"], [0.3, "--amp-2"], [0.475, "--amp-3"], [0.625, "--amp-4"], [0.85, "--amp-5"]];
-const hexRgb = h => { h = h.replace("#", ""); return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16)); };
-function ampColor(f) {
-  f = Math.max(0, Math.min(1, f));
-  for (let i = 1; i < AMP_STOPS.length; i++) {
-    const [p1, c1] = AMP_STOPS[i - 1], [p2, c2] = AMP_STOPS[i];
-    if (f <= p2) { const t = (f - p1) / (p2 - p1), a = hexRgb(css(c1)), b = hexRgb(css(c2));
-      return `rgb(${a.map((v, k) => Math.round(v + (b[k] - v) * t)).join(",")})`; }
-  }
-  return css(AMP_STOPS[AMP_STOPS.length - 1][1]);
-}
 // leicht glätten (gewichteter Durchschnitt mit den Nachbar-Viertelstunden), Lücken bleiben Lücken
 const smooth = arr => arr.map((v, i) => {
   if (v == null) return null;
@@ -448,40 +405,39 @@ function runs(pts, maxGap) {
 function drawHeat(avg, [lo, hi]) {
   const svg = $("heat"); svg.innerHTML = "";
   const peak = peakOf(avg), enough = new Set(ALL.map(r => r.key)).size >= MIN_DAYS;
-  $("legend").innerHTML = !enough
-    ? `<span class="chip"><i class="sq" style="background:var(--series-1)"></i>gemessen</span>
-       <span class="chip"><i class="sq" style="background:var(--closed)"></i>noch keine Daten</span><span>· Ampelfarben ab ${MIN_DAYS} Messtagen</span>`
-    : `<span class="chip">ruhig <i class="grad"></i> voll</span><span class="chip"><i class="sq" style="background:var(--closed)"></i>geschlossen</span>`;
-  const box = svg.parentElement.clientWidth || 900, narrow = box < 700;
-  const L = 30, T = 4, B = 24, ch = narrow ? 26 : 30, bar = ch - (narrow ? 8 : 9);
-  const W = box, H = T + 7 * ch + B, n = hi - lo + 1;
-  const X = s => L + (s - lo) / n * (W - L);                 // linker Rand der Viertelstunde s
+  $("legend").innerHTML = enough
+    ? `<span>ruhig</span><span class="scale">${STEPS.map(st => `<i class="sq" style="background:var(${st[1]})"></i>`).join("")}</span><span>voll</span>`
+    : "";
+  // eine Kachel pro Stunde: Durchschnitt der 4 Viertelstunden
+  const h0 = Math.floor(lo / 4), h1 = Math.floor(hi / 4), nh = h1 - h0 + 1;
+  const hourly = avg.map(day => Array.from({ length: nh }, (_, i) => {
+    const v = day.slice((h0 + i) * 4, (h0 + i) * 4 + 4).filter(x => x != null);
+    return v.length ? v.reduce((x, y) => x + y, 0) / v.length : null; }));
+  const maxV = Math.max(1, ...hourly.flat().filter(v => v != null));
+  const W = svg.parentElement.clientWidth || 900, narrow = W < 600;
+  const L = 26, B = 20, gap = narrow ? 2 : 3, cw = (W - L - gap * (nh - 1)) / nh, chh = narrow ? 22 : 26, H = 7 * (chh + gap) + B;
   svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.style.width = "100%"; svg.style.height = "auto";
-  const defs = el("defs", {}, svg), ns = nowSlot(), closed = css("--closed");
+  const ns = nowSlot(), nowH = Math.floor(ns.s / 4) - h0;
   for (let wd = 0; wd < 7; wd++) {
-    const y = T + wd * ch + (ch - bar) / 2, sm = smooth(avg[wd]);
-    const lbl = el("text", { x: 0, y: T + wd * ch + ch / 2 + 4, "font-size": 12 }, svg); lbl.textContent = DAYS[wd];
-    if (wd === ns.wd) { lbl.style.fill = css("--accent"); lbl.style.fontWeight = 600; }
-    const g = el("linearGradient", { id: "hg" + wd, gradientUnits: "userSpaceOnUse", x1: L, x2: W, y1: 0, y2: 0 }, defs);
-    for (let s = lo; s <= hi; s++) {
-      const v = sm[s], c = v == null ? closed : !enough ? css("--series-1") : isOpen(v) ? ampColor(v / peak) : closed;
-      el("stop", { offset: ((s - lo + 0.5) / n).toFixed(4), "stop-color": c }, g);
+    const y = wd * (chh + gap);
+    const lbl = el("text", { x: 0, y: y + chh / 2 + 4, "font-size": 12 }, svg); lbl.textContent = DAYS[wd];
+    if (wd === ns.wd) { lbl.style.fill = css("--text-primary"); lbl.style.fontWeight = 600; }
+    for (let i = 0; i < nh; i++) {
+      const v = hourly[wd][i], open = isOpen(v), x = L + i * (cw + gap);
+      const fill = !open ? css("--closed") : enough ? css(step(v, peak)[1]) : css("--series-2");
+      const r = el("rect", { x, y, width: cw, height: chh, rx: Math.min(6, cw / 3), fill, style: "cursor:pointer" }, svg);
+      if (open && !enough) r.setAttribute("fill-opacity", (0.25 + 0.75 * v / maxV).toFixed(2));
+      if (wd === ns.wd && i === nowH) { r.setAttribute("stroke", css("--text-primary")); r.setAttribute("stroke-width", 2); }
+      const hh = h0 + i;
+      r.addEventListener("mousemove", ev => showTip(ev, `<b>${DAYS[wd]} ${pad2(hh)}–${pad2(hh + 1)} Uhr</b><br>` +
+        (v == null ? "keine Daten" : open ? `Ø <b>${Math.round(v)}</b>` + (enough ? ` · ${LEVEL[step(v, peak)[2]]}` : "") : "geschlossen")));
+      r.addEventListener("mouseleave", hideTip);
+      r.addEventListener("click", () => { DAY = wd; render(); $("days").scrollIntoView({ behavior: "smooth", block: "center" }); });
     }
-    const r = el("rect", { x: L, y, width: W - L, height: bar, rx: bar / 2, fill: `url(#hg${wd})`, style: "cursor:pointer" }, svg);
-    const slotAt = ev => { const p = svg.createSVGPoint(); p.x = ev.clientX; p.y = ev.clientY;
-      const x = p.matrixTransform(svg.getScreenCTM().inverse()).x; return Math.max(lo, Math.min(hi, lo + Math.floor((x - L) / (W - L) * n))); };
-    r.addEventListener("mousemove", ev => { const s = slotAt(ev), v = avg[wd][s];
-      showTip(ev, `<b>${DAYS_LONG[wd]}, ${slotLbl(s)}</b><br>` + (v == null ? "keine Daten" : !enough ? `Ø <b>${v.toFixed(1)}</b> Personen`
-        : isOpen(v) ? `Ø <b>${v.toFixed(1)}</b> Personen · ${step(v, peak)[2]}` : "geschlossen / leer")); });
-    r.addEventListener("mouseleave", hideTip);
-    r.addEventListener("click", () => { DAY = wd; render(); $("days").scrollIntoView({ behavior: "smooth", block: "center" }); });
   }
-  for (let s = lo; s <= hi; s++) if (s % (narrow ? 16 : 8) === 0) el("text", { x: X(s), y: H - 6, "text-anchor": "middle" }, svg).textContent = slotLbl(s);
-  if (ns.s >= lo && ns.s <= hi) { // "jetzt": feiner Strich mit Punkt auf dem heutigen Streifen
-    const x = X(ns.s) + (W - L) / n / 2, y = T + ns.wd * ch;
-    el("line", { x1: x, x2: x, y1: y + 1, y2: y + ch - 1, stroke: css("--text-primary"), "stroke-width": 2, "stroke-linecap": "round", "pointer-events": "none" }, svg);
-    el("circle", { cx: x, cy: y + 1, r: 3, fill: css("--text-primary"), "pointer-events": "none" }, svg);
-  }
+  const every = narrow ? 3 : 2;
+  for (let i = 0; i < nh; i++) if ((h0 + i) % every === 0)
+    el("text", { x: L + i * (cw + gap) + cw / 2, y: H - 4, "text-anchor": "middle" }, svg).textContent = h0 + i;
 }
 
 // ---------- Tagesverlauf ----------
@@ -491,7 +447,7 @@ function drawLine(avg, [lo, hi]) {
   const svg = $("line"); svg.innerHTML = "";
   const ws = weekStart(new Date()), target = new Date(ws); target.setDate(ws.getDate() + DAY);
   const tkey = `${target.getFullYear()}-${pad2(target.getMonth() + 1)}-${pad2(target.getDate())}`;
-  $("thisLbl").textContent = `${DAYS_LONG[DAY]}, ${target.getDate()}.${target.getMonth() + 1}.` + (target > new Date() ? " (noch nicht)" : "");
+  $("thisLbl").textContent = `${target.getDate()}.${target.getMonth() + 1}.`;
   // diese Woche: jede einzelne Messung mit exakter Uhrzeit (Minuten)
   const cur = ALL.filter(r => r.key === tkey).map(r => [r.min, r.n]).sort((p, q) => p[0] - q[0]);
   const a = avg[DAY], sm = smooth(a);
@@ -560,15 +516,15 @@ function drawLine(avg, [lo, hi]) {
   const pick = [];
   for (const c of cand) { if (pick.every(p => Math.abs(p[0] - c[0]) >= 6)) pick.push(c); if (pick.length === 3) break; }
   $("quiet").innerHTML = pick.length ? pick.sort((x, y) => x[0] - y[0]).map(([s, v]) =>
-    `<div class="inner"><i class="sq" style="display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:8px;background:var(${step(v, peak)[1]})"></i>${slotLbl(s)}–${slotLbl(s + 4)} · Ø <b>${v.toFixed(0)}</b></div>`).join("")
-    : `<span class="sub">noch keine Daten</span>`;
+    `<div><i style="background:var(${step(v, peak)[1]})"></i>${slotLbl(s)}–${slotLbl(s + 4)} · Ø ${v.toFixed(0)}</div>`).join("")
+    : "";
 }
 
 function controls() {
-  $("range").innerHTML = [["all", "Alles"], ["4w", "4 Wochen"], ["2w", "2 Wochen"]]
+  $("range").innerHTML = [["all", "Alle"], ["4w", "4 W"], ["2w", "2 W"]]
     .map(([k, l]) => `<button aria-pressed="${RANGE === k}" data-k="${k}">${l}</button>`).join("");
   $("range").querySelectorAll("button").forEach(b => b.onclick = () => { RANGE = b.dataset.k; render(); });
-  $("days").innerHTML = DAYS_LONG.map((d, i) => `<button aria-pressed="${DAY === i}" data-i="${i}">${innerWidth < 600 ? DAYS[i] : d}</button>`).join("");
+  $("days").innerHTML = DAYS_LONG.map((d, i) => `<button aria-pressed="${DAY === i}" data-i="${i}">${DAYS[i]}</button>`).join("");
   $("days").querySelectorAll("button").forEach(b => b.onclick = () => { DAY = +b.dataset.i; render(); });
 }
 
@@ -609,7 +565,7 @@ async function load(full = true) {
   await loadLive();
   const l = ALL[ALL.length - 1];
   if (l && (!LIVE || new Date(l.t) > new Date(LIVE.t))) LIVE = { t: l.t, n: l.n, hhmm: l.hhmm };
-  $("upd").textContent = "Stand " + new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+  $("upd").textContent = new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
   render();
 }
 load();
