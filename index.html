@@ -460,7 +460,10 @@ function drawLine(avg, [lo, hi]) {
   const tkey = `${target.getFullYear()}-${pad2(target.getMonth() + 1)}-${pad2(target.getDate())}`;
   $("thisLbl").textContent = `${target.getDate()}.${target.getMonth() + 1}.`;
   // diese Woche: jede einzelne Messung mit exakter Uhrzeit (Minuten)
-  const cur = ALL.filter(r => r.key === tkey && openSlot(r.wd, Math.floor(r.min / 15))).map(r => [r.min, r.n]).sort((p, q) => p[0] - q[0]);
+  // doppelte Messungen zur selben Minute (z. B. zwei Läufe um 12:30) zusammenfassen, sonst bricht die Kurve ab
+  const byMin = new Map();
+  for (const r of ALL) if (r.key === tkey && openSlot(r.wd, Math.floor(r.min / 15))) (byMin.get(r.min) || byMin.set(r.min, []).get(r.min)).push(r.n);
+  const cur = [...byMin].map(([m, ns]) => [m, Math.round(ns.reduce((x, y) => x + y, 0) / ns.length)]).sort((p, q) => p[0] - q[0]);
   const a = avg[DAY], sm = smooth(a);
   const W = Math.max(320, svg.parentElement.clientWidth || 1000), H = W < 600 ? 220 : 270, L = 30, R = 8, T = 14, B = 26;
   svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.style.width = "100%"; svg.style.height = "auto";
