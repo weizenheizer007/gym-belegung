@@ -412,38 +412,43 @@ function drawHeat(avg, [lo, hi]) {
   $("legend").innerHTML = enough
     ? `<span>ruhig</span><span class="scale">${STEPS.map(st => `<i class="sq" style="background:var(${st[1]})"></i>`).join("")}</span><span>voll</span>`
     : "";
-  // eine Kachel pro Stunde: Durchschnitt der 4 Viertelstunden
-  const h0 = Math.floor(lo / 4), h1 = Math.floor(hi / 4), nh = h1 - h0 + 1;
-  const hourly = avg.map(day => Array.from({ length: nh }, (_, i) => {
-    const v = day.slice((h0 + i) * 4, (h0 + i) * 4 + 4).filter(x => x != null);
-    return v.length ? v.reduce((x, y) => x + y, 0) / v.length : null; }));
-  const maxV = Math.max(1, ...hourly.flat().filter(v => v != null));
+  // ein Strich pro 10 Minuten, direkt aus den Messungen gemittelt
+  const B10 = 144, sum = avg.map(() => new Float64Array(B10)), cnt = avg.map(() => new Uint32Array(B10));
+  const open10 = (wd, b) => b * 10 >= HOURS[wd][0] && b * 10 < HOURS[wd][1];
+  for (const r of filtered()) { const b = Math.floor(r.min / 10); if (open10(r.wd, b)) { sum[r.wd][b] += r.n; cnt[r.wd][b]++; } }
+  const v10 = sum.map((d, wd) => Array.from(d, (v, b) => cnt[wd][b] ? v / cnt[wd][b] : null));
+  const b0 = Math.floor(lo * 15 / 60) * 6, b1 = Math.ceil((hi + 1) * 15 / 60) * 6 - 1, nb = b1 - b0 + 1;
+  const maxV = Math.max(1, ...v10.flat().filter(v => v != null));
   const W = svg.parentElement.clientWidth || 900, narrow = W < 600;
-  const L = 26, B = 20, gap = narrow ? 2 : 3, cw = (W - L - gap * (nh - 1)) / nh, chh = narrow ? 22 : 26, H = 7 * (chh + gap) + B;
+  const L = 26, B = 20, gap = 1, cw = (W - L - gap * (nb - 1)) / nb, chh = narrow ? 22 : 26, H = 7 * (chh + 4) + B;
   svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.style.width = "100%"; svg.style.height = "auto";
-  const ns = nowSlot(), nowH = Math.floor(ns.s / 4) - h0;
+  const ns = nowSlot(), d = new Date(), nowMin = d.getHours() * 60 + d.getMinutes();
+  const X = b => L + (b - b0) * (cw + gap);
   for (let wd = 0; wd < 7; wd++) {
-    const y = wd * (chh + gap);
+    const y = wd * (chh + 4);
     const lbl = el("text", { x: 0, y: y + chh / 2 + 4, "font-size": 12 }, svg); lbl.textContent = DAYS[wd];
     if (wd === ns.wd) { lbl.style.fill = css("--text-primary"); lbl.style.fontWeight = 600; }
-    for (let i = 0; i < nh; i++) {
-      const v = hourly[wd][i], open = isOpen(v), x = L + i * (cw + gap);
-      const fill = !open ? css("--closed") : enough ? css(step(v, peak)[1]) : css("--series-2");
-      const r = el("rect", { x, y, width: cw, height: chh, rx: Math.min(6, cw / 3), fill, style: "cursor:pointer" }, svg);
-      const hrOpen = [0, 1, 2, 3].some(q => openSlot(wd, (h0 + i) * 4 + q));
-      if (!hrOpen) r.setAttribute("fill-opacity", 0.3);
-      if (open && !enough) r.setAttribute("fill-opacity", (0.25 + 0.75 * v / maxV).toFixed(2));
-      if (wd === ns.wd && i === nowH) { r.setAttribute("stroke", css("--text-primary")); r.setAttribute("stroke-width", 2); }
-      const hh = h0 + i;
-      r.addEventListener("mousemove", ev => showTip(ev, `<b>${DAYS[wd]} ${pad2(hh)}–${pad2(hh + 1)} Uhr</b><br>` +
-        (!hrOpen ? "geschlossen" : v == null ? "keine Daten" : open ? `Ø <b>${Math.round(v)}</b>` + (enough ? ` · ${LEVEL[step(v, peak)[2]]}` : "") : "geschlossen")));
+    for (let b = b0; b <= b1; b++) {
+      const v = v10[wd][b], op = open10(wd, b);
+      const fill = v == null ? css("--closed") : enough ? css(step(v, peak)[1]) : css("--series-2");
+      const r = el("rect", { x: X(b), y, width: cw, height: chh, rx: Math.min(cw / 2, 2), fill, style: "cursor:pointer" }, svg);
+      if (!op) r.setAttribute("fill-opacity", 0.3);
+      else if (v != null && !enough) r.setAttribute("fill-opacity", (0.25 + 0.75 * v / maxV).toFixed(2));
+      r.addEventListener("mousemove", ev => showTip(ev, `<b>${DAYS[wd]} ${hm(b * 10)}–${hm(b * 10 + 10)}</b><br>` +
+        (!op ? "geschlossen" : v == null ? "keine Daten" : `Ø <b>${Math.round(v)}</b>` + (enough ? ` · ${LEVEL[step(v, peak)[2]]}` : ""))));
       r.addEventListener("mouseleave", hideTip);
       r.addEventListener("click", () => { DAY = wd; render(); $("days").scrollIntoView({ behavior: "smooth", block: "center" }); });
     }
   }
+  // Jetzt-Markierung
+  const nb10 = nowMin / 10;
+  if (nb10 >= b0 && nb10 <= b1 + 1) {
+    const x = X(b0) + (nb10 - b0) * (cw + gap), y = ns.wd * (chh + 4);
+    el("rect", { x: x - 1, y: y - 3, width: 2, height: chh + 6, rx: 1, fill: css("--text-primary"), "pointer-events": "none" }, svg);
+  }
   const every = narrow ? 3 : 2;
-  for (let i = 0; i < nh; i++) if ((h0 + i) % every === 0)
-    el("text", { x: L + i * (cw + gap) + cw / 2, y: H - 4, "text-anchor": "middle" }, svg).textContent = h0 + i;
+  for (let h = Math.ceil(b0 / 6); h * 6 <= b1; h++) if (h % every === 0)
+    el("text", { x: X(h * 6), y: H - 4, "text-anchor": "middle" }, svg).textContent = h;
 }
 
 // ---------- Tagesverlauf ----------
